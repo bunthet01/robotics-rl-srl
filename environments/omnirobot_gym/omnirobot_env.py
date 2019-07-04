@@ -74,7 +74,7 @@ class OmniRobotEnv(SRLGymEnv):
                  learn_states=False, srl_model="raw_pixels", record_data=False, action_repeat=1, random_target=True,
                  shape_reward=False, simple_continual_target=False, circular_continual_move=False,
                  square_continual_move=False, eight_continual_move=False, short_episodes=False,
-                 state_init_override=None,  env_rank=0, srl_pipe=None, img_shape=None, **_):
+                 state_init_override=None, env_rank=0, srl_pipe=None, img_shape=None, **_):
 
         super(OmniRobotEnv, self).__init__(srl_model=srl_model,
                                            relative_pos=RELATIVE_POS,
@@ -384,12 +384,74 @@ class OmniRobotEnv(SRLGymEnv):
         
         self.boundary_coner_pixel_pos = np.around(self.boundary_coner_pixel_pos).astype(np.int)
 
+        # Create square for vizu of objective in continual square task
+        if self.square_continual_move:
+
+            self.boundary_coner_pixel_pos_continual = np.zeros((2, 4))
+            # assume that image is undistorted
+            self.boundary_coner_pixel_pos_continual[:, 0] = \
+                pos_transformer.phyPosGround2PixelPos([-RADIUS, -RADIUS], return_distort_image_pos=False).squeeze()
+            self.boundary_coner_pixel_pos_continual[:, 1] = \
+                pos_transformer.phyPosGround2PixelPos([RADIUS, -RADIUS],  return_distort_image_pos=False).squeeze()
+            self.boundary_coner_pixel_pos_continual[:, 2] = \
+                pos_transformer.phyPosGround2PixelPos([RADIUS, RADIUS], return_distort_image_pos=False).squeeze()
+            self.boundary_coner_pixel_pos_continual[:, 3] = \
+                pos_transformer.phyPosGround2PixelPos([-RADIUS, RADIUS], return_distort_image_pos=False).squeeze()
+
+            # transform the corresponding points into cropped image
+            self.boundary_coner_pixel_pos_continual = self.boundary_coner_pixel_pos_continual - (
+                        np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)).reshape(2, 1) / 2.0
+
+            # transform the corresponding points into resized image (RENDER_WIDHT, RENDER_HEIGHT)
+            self.boundary_coner_pixel_pos_continual[0, :] *= RENDER_WIDTH / CROPPED_SIZE[0]
+            self.boundary_coner_pixel_pos_continual[1, :] *= RENDER_HEIGHT / CROPPED_SIZE[1]
+
+            self.boundary_coner_pixel_pos_continual = np.around(self.boundary_coner_pixel_pos_continual).astype(np.int)
+
+        elif self.circular_continual_move:
+            self.center_coordinates = \
+                pos_transformer.phyPosGround2PixelPos([0, 0], return_distort_image_pos=False).squeeze()
+            self.center_coordinates = self.center_coordinates - (
+                np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)) / 2.0
+            # transform the corresponding points into resized image (RENDER_WIDHT, RENDER_HEIGHT)
+            self.center_coordinates[0] *= RENDER_WIDTH / CROPPED_SIZE[0]
+            self.center_coordinates[1] *= RENDER_HEIGHT / CROPPED_SIZE[1]
+
+            self.center_coordinates = np.around(self.center_coordinates).astype(np.int)
+
+            # Points to convert radisu in env space
+            self.boundary_coner_pixel_pos_continual = \
+                pos_transformer.phyPosGround2PixelPos([0, RADIUS], return_distort_image_pos=False).squeeze()
+
+            # transform the corresponding points into cropped image
+            self.boundary_coner_pixel_pos_continual = self.boundary_coner_pixel_pos_continual - (
+                        np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)) / 2.0
+
+            # transform the corresponding points into resized image (RENDER_WIDHT, RENDER_HEIGHT)
+            self.boundary_coner_pixel_pos_continual[0] *= RENDER_WIDTH / CROPPED_SIZE[0]
+            self.boundary_coner_pixel_pos_continual[1] *= RENDER_HEIGHT / CROPPED_SIZE[1]
+
+            self.boundary_coner_pixel_pos_continual = np.around(self.boundary_coner_pixel_pos_continual).astype(np.int)
+
     def visualizeBoundary(self):
         """
         visualize the unvisible boundary, should call initVisualizeBoundary firstly
         """
         self.observation_with_boundary = self.observation.copy()
 
+        # Add boundary continual
+        if self.square_continual_move:
+            for idx in range(4):
+                idx_next = idx + 1
+                cv2.line(self.observation_with_boundary, tuple(self.boundary_coner_pixel_pos_continual[:, idx]),
+                         tuple(self.boundary_coner_pixel_pos_continual[:, idx_next % 4]), (0, 0, 200), 2)
+
+        elif self.circular_continual_move:
+            radius_converted = np.linalg.norm(self.center_coordinates - self.boundary_coner_pixel_pos_continual)
+            cv2.circle(self.observation_with_boundary, tuple(self.center_coordinates), np.float32(radius_converted),
+                       (0, 0, 200), 2)
+
+        # Add boundary of env
         for idx in range(4):
             idx_next = idx + 1
             cv2.line(self.observation_with_boundary, tuple(self.boundary_coner_pixel_pos[:, idx]),
