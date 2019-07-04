@@ -129,10 +129,9 @@ class OmniRobotEnv(SRLGymEnv):
         else:
             self.dtype = np.uint8
             if img_shape is None:
-		self.observation_space = spaces.Box(low=0, high=255, shape=(RENDER_WIDTH, RENDER_HEIGHT, 3),
-                                                dtype=self.dtype)
-	    else:
-            	self.observation_space = spaces.Box(low=0, high=255, shape=(self.img_shape[2], self.img_shape[1], 3),
+                self.observation_space = spaces.Box(low=0, high=255, shape=(RENDER_WIDTH, RENDER_HEIGHT, 3), dtype=self.dtype)
+            else:
+                self.observation_space = spaces.Box(low=0, high=255, shape=(self.img_shape[2], self.img_shape[1], 3),
                                                 dtype=self.dtype)
 
         if record_data:

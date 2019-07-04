@@ -1,3 +1,4 @@
+
 from __future__ import division, absolute_import, print_function
 
 import argparse
@@ -55,8 +56,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         "shape_reward": args.shape_reward,
         "simple_continual_target": args.simple_continual,
         "circular_continual_move": args.circular_continual,
-        "square_continual_move": args.square_continual,
-        "short_episodes":  args.short_episodes
+        "square_continual_move": args.square_continual
     }
 
     if partition:
