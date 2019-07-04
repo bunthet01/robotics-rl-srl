@@ -72,7 +72,9 @@ class OmniRobotEnv(SRLGymEnv):
 
     def __init__(self, renders=False, name="Omnirobot", is_discrete=True, save_path='srl_zoo/data/', state_dim=-1,
                  learn_states=False, srl_model="raw_pixels", record_data=False, action_repeat=1, random_target=True,
-                 shape_reward=False, env_rank=0, srl_pipe=None, img_shape=None, **_):
+                 shape_reward=False, simple_continual_target=False, circular_continual_move=False,
+                 square_continual_move=False, eight_continual_move=False, short_episodes=False,
+                 state_init_override=None,  env_rank=0, srl_pipe=None, img_shape=None, **_):
 
         super(OmniRobotEnv, self).__init__(srl_model=srl_model,
                                            relative_pos=RELATIVE_POS,
@@ -104,6 +106,11 @@ class OmniRobotEnv(SRLGymEnv):
         self.target_pos = None
         self.saver = None
         self._random_target = random_target
+        self.simple_continual_target = simple_continual_target
+        self.circular_continual_move = circular_continual_move
+        self.square_continual_move = square_continual_move
+        self.eight_continual_move = eight_continual_move
+        self.short_episodes = short_episodes
 
         if self._is_discrete:
             self.action_space = spaces.Discrete(N_DISCRETE_ACTIONS)
@@ -121,7 +128,11 @@ class OmniRobotEnv(SRLGymEnv):
                 low=-np.inf, high=np.inf, shape=(self.state_dim,), dtype=self.dtype)
         else:
             self.dtype = np.uint8
-            self.observation_space = spaces.Box(low=0, high=255, shape=(self.img_shape[2], self.img_shape[1], 3),
+            if img_shape is None:
+		self.observation_space = spaces.Box(low=0, high=255, shape=(RENDER_WIDTH, RENDER_HEIGHT, 3),
+                                                dtype=self.dtype)
+	    else:
+            	self.observation_space = spaces.Box(low=0, high=255, shape=(self.img_shape[2], self.img_shape[1], 3),
                                                 dtype=self.dtype)
 
         if record_data:
