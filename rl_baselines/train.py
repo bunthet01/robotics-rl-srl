@@ -236,7 +236,7 @@ def main():
                         type=str, default=None)
     # Ignore unknown args for now
     args, unknown = parser.parse_known_args()
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
+    # os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
     env_kwargs = {}
     if args.img_shape is None:
         img_shape = None #(3,224,224)
