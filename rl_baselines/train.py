@@ -101,7 +101,11 @@ def configureEnvAndLogFolder(args, env_kwargs, all_models):
             else:
                 srl_model_path = models['log_folder'] + path
                 env_kwargs["srl_model_path"] = srl_model_path
-            
+    # Use of continual learning env
+    env_kwargs["simple_continual_target"] = args.simple_continual
+    env_kwargs["circular_continual_move"] = args.circular_continual
+    env_kwargs["square_continual_move"] = args.square_continual
+    env_kwargs["eight_continual_move"] = args.eight_continual
 
     # Add date + current time
     args.log_dir += "{}/{}/".format(ALGO_NAME, datetime.now().strftime("%y-%m-%d_%Hh%M_%S"))
@@ -212,6 +216,18 @@ def main():
                         help='load the latest learned model (location:srl_zoo/logs/DatasetName/)')
     parser.add_argument('--load-rl-model-path', type=str, default=None,
                         help="load the trained RL model, should be with the same algorithm type")
+    parser.add_argument('-sc', '--simple-continual', action='store_true', default=False,
+                        help='Simple red square target for task 1 of continual learning scenario. ' +
+                             'The task is: robot should reach the target.')
+    parser.add_argument('-cc', '--circular-continual', action='store_true', default=False,
+                        help='Blue square target for task 2 of continual learning scenario. ' +
+                             'The task is: robot should turn in circle around the target.')
+    parser.add_argument('-sqc', '--square-continual', action='store_true', default=False,
+                        help='Green square target for task 3 of continual learning scenario. ' +
+                             'The task is: robot should turn in square around the target.')
+    parser.add_argument('-ec', '--eight-continual', action='store_true', default=False,
+                        help='Green square target for task 4 of continual learning scenario. ' +
+                             'The task is: robot should do the eigth with the target as center of the shape.')
     parser.add_argument('--img-shape', type=str, default="(3,128,128)",
                         help="Image shape of environment.")
     parser.add_argument("--gpu-num", help="Choose the number of GPU (CUDA_VISIBLE_DEVICES).",
@@ -251,6 +267,10 @@ def main():
                 found = True
                 break
         assert found, "Error: srl_model {}, is not compatible with the {} environment.".format(args.srl_model, args.env)
+
+    assert not(sum([args.simple_continual, args.circular_continual, args.square_continual, args.eight_continual]) \
+           > 1 and args.env == "OmnirobotEnv-v0"), \
+        "For continual SRL and RL, please provide only one scenario at the time and use OmnirobotEnv-v0 environment !"
     
     ENV_NAME = args.env
     ALGO_NAME = args.algo
@@ -284,6 +304,11 @@ def main():
     env_kwargs["action_repeat"] = args.action_repeat
     # Random init position for button
     env_kwargs["random_target"] = args.random_target
+
+    # If in simple continual scenario, then the target should be initialized randomly.
+    if args.simple_continual is True:
+        env_kwargs["random_target"] = True
+
     # Allow up action
     # env_kwargs["force_down"] = False
 
