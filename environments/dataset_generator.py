@@ -12,11 +12,15 @@ import numpy as np
 from stable_baselines import PPO2
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines.common.policies import CnnPolicy
+import tensorflow as tf
 
 from environments import ThreadingType
 from environments.registry import registered_env
+from replay.enjoy_baselines import createEnv, loadConfigAndSetup
 from real_robots.constants import USING_OMNIROBOT
 from srl_zoo.utils import printRed, printYellow
+from rl_baselines.utils import MultiprocessSRLModel
+from state_representation.models import getSRLDim
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # used to remove debug info of tensorflow
 
@@ -63,25 +67,52 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         env_kwargs["name"] = args.name + "_part-" + str(thread_num)
     else:
         env_kwargs["name"] = args.name
+    if args.run_policy=="custom": 
+        args.log_dir = args.log_custom_policy
+        args.render = args.display
+        args.plotting, args.action_proba = False, False
 
+        train_args, load_path, algo_name, algo_class, _, env_kwargs_extra = loadConfigAndSetup(args)
+        env_kwargs["srl_model"] = env_kwargs_extra["srl_model"]
+        env_kwargs["random_target"] = env_kwargs_extra.get("random_target", False)
+        env_kwargs["use_srl"] = env_kwargs_extra.get("use_srl", False)
+
+        # TODO REFACTOR
+        env_kwargs["simple_continual_target"] = env_kwargs_extra.get("simple_continual_target", False)
+        env_kwargs["circular_continual_move"] = env_kwargs_extra.get("circular_continual_move", False)
+        env_kwargs["square_continual_move"] = env_kwargs_extra.get("square_continual_move", False)
+        env_kwargs["eight_continual_move"] = env_kwargs_extra.get("eight_continual_move", False)
+        if env_kwargs["use_srl"]:
+            env_kwargs["srl_model_path"] = env_kwargs_extra.get("srl_model_path", None)
+            env_kwargs["state_dim"] = getSRLDim(env_kwargs_extra.get("srl_model_path", None))
+            srl_model = MultiprocessSRLModel(num_cpu=args.num_cpu, env_id=args.env, env_kwargs=env_kwargs)
+            env_kwargs["srl_pipe"] = srl_model.pipe
     env_class = registered_env[args.env][0]
     env = env_class(**env_kwargs)
     using_real_omnibot = args.env == "OmnirobotEnv-v0" and USING_OMNIROBOT
 
     model = None
-    if use_ppo2:
+    if use_ppo2 or args.run_policy =="custom":
         # Additional env when using a trained ppo agent to generate data
         # instead of a random agent
         train_env = env_class(**{**env_kwargs, "record_data": False, "renders": False})
         train_env = DummyVecEnv([lambda: train_env])
         train_env = VecNormalize(train_env, norm_obs=True, norm_reward=False)
-
-        model = PPO2(CnnPolicy, train_env).learn(args.ppo2_timesteps)
+        if use_ppo2:
+        	model = PPO2(CnnPolicy, train_env).learn(args.ppo2_timesteps)
+        else:
+            _, _, algo_args = createEnv(args, train_args, algo_name, algo_class, env_kwargs)
+            tf.reset_default_graph()
+            set_global_seeds(args.seed % 2 ^ 32)
+            printYellow("Compiling Policy function....")
+            model = algo_class.load(load_path, args=algo_args)
 
     frames = 0
     start_time = time.time()
+
     # divide evenly, then do an extra one for only some of them in order to get the right count
     for i_episode in range(args.num_episode // args.num_cpu + 1 * (args.num_episode % args.num_cpu > thread_num)):
+
         # seed + position in this slice + size of slice (with reminder if uneven partitions)
         seed = args.seed + i_episode + args.num_episode // args.num_cpu * thread_num + \
                (thread_num if thread_num <= args.num_episode % args.num_cpu else args.num_episode % args.num_cpu)
@@ -150,6 +181,13 @@ def main():
                         help='Prints out the reward distribution when the dataset generation is finished')
     parser.add_argument('--run-ppo2', action='store_true', default=False,
                         help='runs a ppo2 agent instead of a random agent')
+    parser.add_argument('--run-policy', type=str, default="random",
+                        choices=VALID_POLICIES,
+                        help='Policy to run for data collection ' +
+                             '(random, localy pretrained ppo2, pretrained custom policy)')
+    parser.add_argument('--log-custom-policy', type=str, default='',
+                        help='Logs of the custom pretained policy to run for data collection')
+    
     parser.add_argument('--ppo2-timesteps', type=int, default=1000,
                         help='number of timesteps to run PPO2 on before generating the dataset')
     parser.add_argument('--toward-target-timesteps-proportion', type=float, default=0.0,
@@ -178,6 +216,9 @@ def main():
 
     assert sum([args.simple_continual, args.circular_continual, args.square_continual]) <= 1, \
         "For continual SRL and RL, please provide only one scenario at the time !"
+
+    assert not (args.log_custom_policy == '' and args.run_policy == 'custom'), \
+        "If using a custom policy, please specify a valid log folder for loading it."
 
     # this is done so seed 0 and 1 are different and not simply offset of the same datasets.
     args.seed = np.random.RandomState(args.seed).randint(int(1e10))
