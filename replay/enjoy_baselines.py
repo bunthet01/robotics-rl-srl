@@ -120,7 +120,7 @@ def loadConfigAndSetup(load_args):
     return train_args, load_path, algo_name, algo_class, srl_model_path, env_kwargs
 
 
-def createEnv(load_args, train_args, algo_name, algo_class, env_kwargs, log_dir="/tmp/gym/test/"):
+def createEnv(load_args, train_args, algo_name, algo_class, env_kwargs, log_dir="tmp/gym/test/"):
     """
     Create the Gym environment
     :param load_args: (Arguments)

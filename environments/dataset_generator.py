@@ -21,8 +21,10 @@ from real_robots.constants import USING_OMNIROBOT
 from srl_zoo.utils import printRed, printYellow
 from rl_baselines.utils import MultiprocessSRLModel
 from state_representation.models import getSRLDim
+from stable_baselines.common import set_global_seeds
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # used to remove debug info of tensorflow
+VALID_POLICIES = ['random', 'ppo2', 'custom']
 
 
 def convertImagePath(args, path, record_id_start):
