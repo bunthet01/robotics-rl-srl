@@ -4,15 +4,22 @@ from real_robots.constants import *
 
 
 class OmnirobotManagerBase(object):
-    def __init__(self):
+    def __init__(self, simple_continual_target=False, circular_continual_move=False, square_continual_move=False,
+                 eight_continual_move=False, lambda_c=10.0, second_cam_topic=None, state_init_override=None):
         """
         This class is the basic class for omnirobot server, and omnirobot simulator's server.
         This class takes omnirobot position at instant t, and takes the action at instant t,
         to determinate the position it should go at instant t+1, and the immediate reward it can get at instant t
         """
         super(OmnirobotManagerBase, self).__init__()
-        self.second_cam_topic = SECOND_CAM_TOPIC
+        self.second_cam_topic = second_cam_topic
         self.episode_idx = 0
+        self.simple_continual_target = simple_continual_target
+        self.circular_continual_move = circular_continual_move
+        self.square_continual_move = square_continual_move
+        self.eight_continual_move = eight_continual_move
+        self.lambda_c = lambda_c
+        self.state_init_override = state_init_override
 
         # the abstract object for robot,
         # can be the real robot (Omnirobot class)
@@ -21,7 +28,7 @@ class OmnirobotManagerBase(object):
 
     def rightAction(self):
         """
-        Let robot excute right action, and checking the boudary
+        Let robot execute right action, and checking the boundary
         :return has_bumped: (bool) 
         """
         if self.robot.robot_pos[1] - STEP_DISTANCE > MIN_Y:
@@ -33,7 +40,7 @@ class OmnirobotManagerBase(object):
 
     def leftAction(self):
         """
-        Let robot excute left action, and checking the boudary
+        Let robot execute left action, and checking the boundary
         :return has_bumped: (bool) 
         """
         if self.robot.robot_pos[1] + STEP_DISTANCE < MAX_Y:
@@ -45,7 +52,7 @@ class OmnirobotManagerBase(object):
 
     def forwardAction(self):
         """
-        Let robot excute forward action, and checking the boudary
+        Let robot execute forward action, and checking the boundary
         :return has_bumped: (bool) 
         """
         if self.robot.robot_pos[0] + STEP_DISTANCE < MAX_X:
@@ -57,7 +64,7 @@ class OmnirobotManagerBase(object):
 
     def backwardAction(self):
         """
-        Let robot excute backward action, and checking the boudary
+        Let robot execute backward action, and checking the boundary
         :return has_bumped: (bool) 
         """
         if self.robot.robot_pos[0] - STEP_DISTANCE > MIN_X:
@@ -69,7 +76,7 @@ class OmnirobotManagerBase(object):
 
     def moveContinousAction(self, msg):
         """
-        Let robot excute continous action, and checking the boudary
+        Let robot execute continous action, and checking the boundary
         :return has_bumped: (bool) 
         """
         if MIN_X < self.robot.robot_pos[0] + msg['action'][0] < MAX_X and \
@@ -111,6 +118,10 @@ class OmnirobotManagerBase(object):
         if command == 'reset':
             action = None
             self.episode_idx += 1
+
+            # empty list of previous states
+            self.robot.emptyHistory()
+
             self.resetEpisode()
 
         elif command == 'action':
@@ -139,20 +150,51 @@ class OmnirobotManagerBase(object):
             has_bumped = self.backwardAction()
         elif action == 'Continuous':
             has_bumped = self.moveContinousAction(msg)
-        elif action == None:
+        elif action is None:
             pass
         else:
             print("Unsupported action: ", action)
 
         # Determinate the reward for this step
-        
-        # Consider that we reached the target if we are close enough
-        # we detect that computing the difference in area between TARGET_INITIAL_AREA
-        # current detected area of the target
-        if np.linalg.norm(np.array(self.robot.robot_pos) - np.array(self.robot.target_pos)) \
-                < DIST_TO_TARGET_THRESHOLD:
-            self.reward = REWARD_TARGET_REACH
-        elif has_bumped:
-            self.reward = REWARD_BUMP_WALL
+
+        if self.circular_continual_move or self.square_continual_move or self.eight_continual_move:
+            step_counter = msg.get("step_counter", None)
+            assert step_counter is not None
+
+            self.robot.appendToHistory(self.robot.robot_pos)
+
+            ord = None
+            if self.square_continual_move or self.eight_continual_move:
+                ord = np.inf
+
+            if self.circular_continual_move or self.square_continual_move:
+                self.reward = self.lambda_c * (1 - (np.linalg.norm(self.robot.robot_pos, ord=ord) - RADIUS) ** 2)
+
+            elif self.eight_continual_move:
+                plus = self.robot.robot_pos[0]**2 + self.robot.robot_pos[1]**2
+                minus = 2 * (RADIUS ** 2) * (self.robot.robot_pos[0] ** 2 - self.robot.robot_pos[1] ** 2)
+                self.reward = self.lambda_c * (1 - (plus - minus) ** 2)
+
+            else:
+                pass
+
+            if step_counter < self.robot.getHistorySize():
+                pass
+            else:
+                self.robot.popOfHistory()
+                self.reward *= np.linalg.norm(self.robot.robot_pos - self.robot.robot_pos_past_k_steps[0])
+
+            if has_bumped:
+                self.reward += self.lambda_c * self.lambda_c * REWARD_BUMP_WALL
+
         else:
-            self.reward = REWARD_NOTHING
+            # Consider that we reached the target if we are close enough
+            # we detect that computing the difference in area between TARGET_INITIAL_AREA
+            # current detected area of the target
+            if np.linalg.norm(np.array(self.robot.robot_pos) - np.array(self.robot.target_pos)) \
+                    < DIST_TO_TARGET_THRESHOLD:
+                self.reward = REWARD_TARGET_REACH
+            elif has_bumped:
+                self.reward = REWARD_BUMP_WALL
+            else:
+                self.reward = REWARD_NOTHING
