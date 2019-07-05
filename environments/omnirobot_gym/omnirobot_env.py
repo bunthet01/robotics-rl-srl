@@ -141,8 +141,11 @@ class OmniRobotEnv(SRLGymEnv):
                                       learn_states=learn_states, path=save_path)
 
         if USING_OMNIROBOT_SIMULATOR:
-            self.socket = OmniRobotSimulatorSocket(
-                output_size=[self.img_shape[2], self.img_shape[1]], random_target=self._random_target)
+            self.socket = OmniRobotSimulatorSocket(simple_continual_target=simple_continual_target,
+                                                   circular_continual_move=circular_continual_move,
+                                                   square_continual_move=square_continual_move,
+                                                   eight_continual_move=eight_continual_move,
+                output_size=[self.img_shape[2], self.img_shape[1]], random_target=self._random_target, state_init_override=state_init_override)
         else:
             # Initialize Baxter effector by connecting to the Gym bridge ROS node:
             self.context = zmq.Context()
