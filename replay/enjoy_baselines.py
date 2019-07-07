@@ -60,6 +60,18 @@ def parseArguments():
                         help='display in the latent space the current observation.')
     parser.add_argument('--action-proba', action='store_true', default=False,
                         help='display the probability of actions')
+    parser.add_argument('-sc', '--simple-continual', action='store_true', default=False,
+                        help='Simple red square target for task 1 of continual learning scenario. ' +
+                             'The task is: robot should reach the target.')
+    parser.add_argument('-cc', '--circular-continual', action='store_true', default=False,
+                        help='Blue square target for task 2 of continual learning scenario. ' +
+                             'The task is: robot should turn in circle around the target.')
+    parser.add_argument('-sqc', '--square-continual', action='store_true', default=False,
+                        help='Green square target for task 3 of continual learning scenario. ' +
+                             'The task is: robot should turn in square around the target.')
+    args, unknown = parser.parse_known_args()
+    assert sum([args.simple_continual, args.circular_continual, args.square_continual]) <= 1, \
+        "For continual SRL and RL, please provide only one scenario at the time and use OmnirobotEnv-v0 environment !"
     parser.add_argument('--img-shape', type=str, default="(3,128,128)",
                         help="Image shape of environment.")
     return parser.parse_args()
@@ -104,6 +116,19 @@ def loadConfigAndSetup(load_args):
         env_kwargs["force_down"] = env_globals.get('force_down', True)
     else:
         env_kwargs["force_down"] = env_globals.get('force_down', False)
+
+    if train_args["env"] == "OmnirobotEnv-v0":
+        env_kwargs["simple_continual_target"] = env_globals.get("simple_continual_target", False)
+        env_kwargs["circular_continual_move"] = env_globals.get("circular_continual_move", False)
+        env_kwargs["square_continual_move"] = env_globals.get("square_continual_move", False)
+        env_kwargs["eight_continual_move"] = env_globals.get("eight_continual_move", False)
+
+        # If overriding the environment for specific Continual Learning tasks
+        if sum([load_args.simple_continual, load_args.circular_continual, load_args.square_continual]) >= 1:
+            env_kwargs["simple_continual_target"] = load_args.simple_continual
+            env_kwargs["circular_continual_move"] = load_args.circular_continual
+            env_kwargs["square_continual_move"] = load_args.square_continual
+            env_kwargs["random_target"] = not (load_args.circular_continual or load_args.square_continual)
 
     srl_model_path = None
     if train_args["srl_model"] != "raw_pixels":
@@ -160,7 +185,7 @@ def main():
         img_shape = tuple(map(int, load_args.img_shape[1:-1].split(",")))
     env_kwargs['img_shape'] = img_shape
     log_dir, envs, algo_args = createEnv(load_args, train_args, algo_name, algo_class, env_kwargs)
-    
+
     assert (not load_args.plotting and not load_args.action_proba)\
         or load_args.num_cpu == 1, "Error: cannot run plotting with more than 1 CPU"
 
@@ -169,6 +194,7 @@ def main():
     # createTensorflowSession()
 
     printYellow("Compiling Policy function....")
+    printYellow(load_path)
     method = algo_class.load(load_path, args=algo_args)
 
     dones = [False for _ in range(load_args.num_cpu)]
@@ -336,7 +362,6 @@ def main():
             last_n_done = n_done
             _, mean_reward = computeMeanReward(log_dir, n_done)
             print("{} episodes - Mean reward: {:.2f}".format(n_done, mean_reward))
-
     _, mean_reward = computeMeanReward(log_dir, n_done)
     print("{} episodes - Mean reward: {:.2f}".format(n_done, mean_reward))
 

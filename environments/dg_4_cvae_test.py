@@ -25,8 +25,10 @@ from rl_baselines.utils import MultiprocessSRLModel, loadRunningAverage
 from srl_zoo.utils import printRed, printYellow
 from srl_zoo.preprocessing.utils import deNormalize
 from state_representation.models import loadSRLModel, getSRLDim
+from .utils import convertScalerToVectorAction
 
-
+RENDER_HEIGHT = 224
+RENDER_WIDTH = 224
 VALID_MODELS = ["forward", "inverse", "reward", "priors", "episode-prior", "reward-prior", "triplet",
                 "autoencoder", "vae", "dae", "random"]
 VALID_POLICIES = ['walker', 'random', 'ppo2', 'custom']
@@ -34,6 +36,31 @@ VALID_ACTIONS = [0, 1, 2, 3]
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # used to remove debug info of tensorflow
 
+
+def latestPath(path):
+    """
+    :param path: path to the log folder (defined in srl_model.yaml) (str)
+    :return: path to latest learned model in the same dataset folder (str)
+    """
+    return max([path + d for d in os.listdir(path) if os.path.isdir(path + "/" + d)], key=os.path.getmtime) + '/'
+
+
+def walkerPath():
+    """
+
+    :return:
+    """
+    eps = 0.01
+    N_times = 14
+    path = []
+    left = [0 for _ in range(N_times)]
+    right = [1 for _ in range(N_times)]
+
+    for idx in range(N_times * 2):
+        path += left if idx % 2 == 0 else right
+        path += [3] if idx < N_times else [2]
+
+    return path
 
 
 def convertImagePath(args, path, record_id_start):
@@ -50,6 +77,7 @@ def convertImagePath(args, path, record_id_start):
     new_record_id = record_id_start + int(path.split("/")[-2].split("_")[-1])
     return args.name + "/record_{:03d}".format(new_record_id) + "/" + image_name
 
+
 def vecEnv(env_kwargs_local, env_class):
     """
     Local Env Wrapper
@@ -63,13 +91,12 @@ def vecEnv(env_kwargs_local, env_class):
     return train_env
 
 
-def env_thread(args, thread_num, partition=True, use_ppo2=False):
+def env_thread(args, thread_num, partition=True):
     """
     Run a session of an environment
     :param args: (ArgumentParser object)
     :param thread_num: (int) The thread ID of the environment session
     :param partition: (bool) If the output should be in multiple parts (default=True)
-    :param use_ppo2: (bool) Use ppo2 to generate the dataset
     """
     env_kwargs = {
         "max_distance": args.max_distance,
@@ -149,8 +176,9 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
     if args.run_policy in ['custom', 'ppo2', 'walker']:
         # Additional env when using a trained agent to generate data
         train_env = vecEnv(env_kwargs, env_class)
-        if use_ppo2 or args.run_policy=='ppo2':
-        	model = PPO2(CnnPolicy, train_env).learn(args.ppo2_timesteps)
+
+        if args.run_policy == 'ppo2':
+            model = PPO2(CnnPolicy, train_env).learn(args.ppo2_timesteps)
         else:
             _, _, algo_args = createEnv(args, train_args, algo_name, algo_class, env_kwargs)
             tf.reset_default_graph()
@@ -182,34 +210,42 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         if len(args.replay_generative_model) > 0:
 
             sample = Variable(th.randn(1, srl_state_dim))
-            class_action = th.tensor([[0, 1, 0, 0]]).float().cuda()
-            print("sample.shape :", sample.shape)
             if th.cuda.is_available():
                 sample = sample.cuda()
-                if args.replay_generative_model == 'cvae':
-                    generated_obs = srl_model.decode_cvae(sample, class_action)
+                if args.use_cvae:
+                    if args.cvae_testing:
+                        testing_actions_array = np.random.randint(4, size=args.num_testing_action)
+                        testing_actions_vector = convertScalerToVectorAction(testing_actions_array)
+
+                        generated_obs = srl_model.decode_cvae(sample, testing_actions_vector)
+                    else:
+                        generated_obs = srl_model.decode_cvae(sample, args.class_action)
                 else:
                     generated_obs = srl_model.decode(sample)
                 generated_obs = generated_obs[0].detach().cpu().numpy()
                 generated_obs = deNormalize(generated_obs)
 
             kwargs_reset['generated_observation'] = generated_obs
-        env.action_space.seed(seed)  # this is for the sample() function from gym.space
         obs = env.reset(**kwargs_reset)
+        # print("obs ", obs.shape)
         done = False
         action_proba = None
         t = 0
         episode_toward_target_on = False
+
         while not done:
+
             env.render()
+
             # Policy to run on the fly - to be trained before generation
-            if use_ppo2 or args.run_policy == 'ppo2':
+            if args.run_policy == 'ppo2':
                 action, _ = model.predict([obs])
 
             # Custom pre-trained Policy (SRL or End-to-End)
             elif args.run_policy in['custom', 'walker']:
                 obs = env_norm._normalize_observation(obs)
                 action = [model.getAction(obs, done)]
+
                 action_proba = model.getActionProba(obs, done)
                 if args.run_policy == 'walker':
                     action_walker = np.array(walker_path[t])
@@ -219,19 +255,19 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                 if episode_toward_target_on and np.random.rand() < args.toward_target_timesteps_proportion and \
                         using_real_omnibot:
                     action = [env.actionPolicyTowardTarget()]
+
                 else:
                     action = [env.action_space.sample()]
+                #print("len(action) :", len(action))
             # Generative replay +/- for on-policy action
             if len(args.replay_generative_model) > 0:
 
                 if args.run_policy == 'custom':
                     obs = obs.reshape(1, srl_state_dim)
+                    #print(obs.shape)
                     obs = th.from_numpy(obs.astype(np.float32)).cuda()
                     z = obs
-                    if args.replay_generative_model == 'cvae':
-                        generated_obs = srl_model.decode_cvae(z, class_action)
-                    else:
-                        generated_obs = srl_model.decode(z)
+                    generated_obs = srl_model.decode(z)
                 else:
                     sample = Variable(th.randn(1, srl_state_dim))
 
@@ -243,9 +279,11 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                 generated_obs = deNormalize(generated_obs)
 
             action_to_step = action[0]
+            #print("action_to_step :", action_to_step)
             kwargs_step = {k: v for (k, v) in [("generated_observation", generated_obs),
                                                ("action_proba", action_proba),
                                                ("action_grid_walker", action_walker)] if v is not None}
+            #print("kwargs_step: ", kwargs_step)
 
             obs, _, done, _ = env.step(action_to_step, **kwargs_step)
 
@@ -265,45 +303,18 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
 def main():
     parser = argparse.ArgumentParser(description='Deteministic dataset generator for SRL training ' +
                                                  '(can be used for environment testing)')
-    parser.add_argument('--num-cpu', type=int, default=1, help='number of cpu to run on')
-    parser.add_argument('--num-episode', type=int, default=50, help='number of episode to run')
     parser.add_argument('--save-path', type=str, default='srl_zoo/data/',
                         help='Folder where the environments will save the output')
     parser.add_argument('--name', type=str, default='kuka_button', help='Folder name for the output')
-    parser.add_argument('--env', type=str, default='KukaButtonGymEnv-v0', help='The environment wanted',
-                        choices=list(registered_env.keys()))
-    parser.add_argument('--display', action='store_true', default=False)                                                #
-    parser.add_argument('--no-record-data', action='store_true', default=False)                                         #
-    parser.add_argument('--max-distance', type=float, default=0.28,
-                        help='Beyond this distance from the goal, the agent gets a negative reward')
-    parser.add_argument('-c', '--continuous-actions', action='store_true', default=False)
+    parser.add_argument('--no-record-data', action='store_true', default=False)
     parser.add_argument('--seed', type=int, default=0, help='the seed')
-    parser.add_argument('-f', '--force', action='store_true', default=False,
-                        help='Force the save, even if it overrides something else,' +
-                             ' including partial parts if they exist')
-    parser.add_argument('-r', '--random-target', action='store_true', default=False,
-                        help='Set the button to a random position')
-    parser.add_argument('--multi-view', action='store_true', default=False, help='Set a second camera to the scene')
-    parser.add_argument('--shape-reward', action='store_true', default=False,
-                        help='Shape the reward (reward = - distance) instead of a sparse reward')
-    parser.add_argument('--reward-dist', action='store_true', default=False,
-                        help='Prints out the reward distribution when the dataset generation is finished')
-    parser.add_argument('--run-ppo2', action='store_true', default=False,
-                        help='runs a ppo2 agent instead of a random agent')
-    parser.add_argument('--run-policy', type=str, default="random",
-                        choices=VALID_POLICIES,
-                        help='Policy to run for data collection ' +
-                             '(random, localy pretrained ppo2, pretrained custom policy)')
     parser.add_argument('--log-custom-policy', type=str, default='',
                         help='Logs of the custom pretained policy to run for data collection')
-    parser.add_argument('-rgm', '--replay-generative-model', type=str, default="", choices=['vae', 'cvae'],
+    parser.add_argument('-rgm', '--replay-generative-model', type=str, default="", choices=['vae'],
                         help='Generative model to replay for generating a dataset (for Continual Learning purposes)')
     parser.add_argument('--log-generative-model', type=str, default='',
                         help='Logs of the custom pretained policy to run for data collection')
-    parser.add_argument('--ppo2-timesteps', type=int, default=1000,
-                        help='number of timesteps to run PPO2 on before generating the dataset')
-    parser.add_argument('--toward-target-timesteps-proportion', type=float, default=0.0,
-                        help="propotion of timesteps that use simply towards target policy, should be 0.0 to 1.0")
+    parser.add_argument('--num-testing-action', defaut=100, help='number of action to test in cvae-testing mode')
     parser.add_argument('-sc', '--simple-continual', action='store_true', default=False,
                         help='Simple red square target for task 1 of continual learning scenario. ' +
                              'The task is: robot should reach the target.')
@@ -315,32 +326,20 @@ def main():
                              'The task is: robot should turn in square around the target.')
     parser.add_argument('--short-episodes', action='store_true', default=False,
                         help='Generate short episodes (only 10 contacts with the target allowed).')
-    parser.add_argument('--use-cvae', action='store_true', default=False, help='Use CVAE to generate images given class'
-                                                                               'of actions')
-    parser.add_argument('--class-action', type=int, choices=VALID_ACTIONS, help='Class of actions to '
-                                                                                           'for images generation')
-    parser.add_argument('--num-testing-action', default=100, help='number of action to test in cvae-testing mode')
-    parser.add_argument('--cvae-testing', action='store_true', default=False, help='use to test cvae performance')
+    parser.add_argument('--env', type=str, default='KukaButtonGymEnv-v0', help='The environment wanted',
+                        choices=list(registered_env.keys()))
+    parser.add_argument('--shape-reward', action='store_true', default=False,
+                        help='Shape the reward (reward = - distance) instead of a sparse reward')
+    parser.add_argument('--display', action='store_true', default=False)
+    parser.add_argument('--episode', type=int, default=-1,
+                        help='Model saved at episode N that we want to load')
+    parser.add_argument('--shape-reward', action='store_true', default=False,
+                        help='Shape the reward (reward = - distance) instead of a sparse reward')
+    parser.add_argument('--num-cpu', type=int, default=1, help='number of cpu to run on')
 
     args = parser.parse_args()
 
-    assert (args.num_cpu > 0), "Error: number of cpu must be positive and non zero"
-    assert (args.max_distance > 0), "Error: max distance must be positive and non zero"
-    assert (args.num_episode > 0), "Error: number of episodes must be positive and non zero"
-    assert not args.reward_dist or not args.shape_reward, \
-        "Error: cannot display the reward distribution for continuous reward"
-    assert not(registered_env[args.env][3] is ThreadingType.NONE and args.num_cpu != 1), \
-        "Error: cannot have more than 1 CPU for the environment {}".format(args.env)
-    if args.num_cpu > args.num_episode:
-        args.num_cpu = args.num_episode
-        printYellow("num_cpu cannot be greater than num_episode, defaulting to {} cpus.".format(args.num_cpu))
-
-    assert sum([args.simple_continual, args.circular_continual, args.square_continual]) <= 1, \
-        "For continual SRL and RL, please provide only one scenario at the time !"
-
-    assert not (args.log_custom_policy == '' and args.run_policy in ['walker', 'custom']), \
-        "If using a custom policy, please specify a valid log folder for loading it."
-
+    # assert
     assert not (args.log_generative_model == '' and args.replay_generative_model == 'custom'), \
         "If using a custom policy, please specify a valid log folder for loading it."
 
@@ -349,41 +348,107 @@ def main():
 
     # this is done so seed 0 and 1 are different and not simply offset of the same datasets.
     args.seed = np.random.RandomState(args.seed).randint(int(1e10))
+    print("args.seed :", args.seed)
 
     # File exists, need to deal with it
     if not args.no_record_data and os.path.exists(args.save_path + args.name):
         assert args.force, "Error: save directory '{}' already exists".format(args.save_path + args.name)
-
-        shutil.rmtree(args.save_path + args.name)
-        for part in glob.glob(args.save_path + args.name + "_part-[0-9]*"):
-            shutil.rmtree(part)
     if not args.no_record_data:
         # create the output
         os.mkdir(args.save_path + args.name)
 
-    if args.num_cpu == 1:
-        env_thread(args, 0, partition=False, use_ppo2=args.run_ppo2)
-    else:
-        # try and divide into multiple processes, with an environment each
-        try:
-            jobs = []
-            for i in range(args.num_cpu):
-                process = multiprocessing.Process(target=env_thread, args=(args, i, True, args.run_ppo2))
-                jobs.append(process)
+    # load generative model
+    generative_model = loadSRLModel(args.log_generative_model, th.cuda.is_available())
+    generative_model_state_dim = generative_model.state_dim
+    generative_model = generative_model.model.model
 
-            for j in jobs:
-                j.start()
+    # generate observations
+    testing_action = np.random.randint(4, args.num_testing_action)
+    testing_action = convertScalerToVectorAction(testing_action)
+    z = np.random.normal(0, 1, (args.num_testing_action, generative_model_state_dim))
+    generated_obs = generative_model.decode_cvae(z, testing_action)
 
-            try:
-                for j in jobs:
-                    j.join()
-            except Exception as e:
-                printRed("Error: unable to join thread")
-                raise e
+    # load configurations and setup for rl and normalize the environment
+    args.render = args.display
+    args.log_dir = args.log_custom_policy
+    train_args, load_path, algo_name, algo_class, srl_model_path, env_kwargs_extra = loadConfigAndSetup(args)
 
-        except Exception as e:
-            printRed("Error: unable to start thread")
-            raise e
+    # create RL environment
+    env_kwargs = {
+        "max_distance": 0.28,
+        "force_down": True,
+        "is_discrete": True,
+        "renders": False,
+        "record_data": not args.no_record_data,
+        "multi_view": False,
+        "save_path": args.save_path,
+        "shape_reward": False,
+        "short_episodes":  args.short_episodes
+    }
+
+    env_kwargs["name"] = args.name
+    env_kwargs["srl_model"] = env_kwargs_extra["srl_model"]
+    env_kwargs["random_target"] = env_kwargs_extra.get("random_target", False)
+    env_kwargs["use_srl"] = env_kwargs_extra.get("use_srl", False)
+    env_kwargs["simple_continual_target"] = env_kwargs_extra.get("simple_continual_target", False)
+    env_kwargs["circular_continual_move"] = env_kwargs_extra.get("circular_continual_move", False)
+    env_kwargs["square_continual_move"] = env_kwargs_extra.get("square_continual_move", False)
+    env_kwargs["eight_continual_move"] = env_kwargs_extra.get("eight_continual_move", False)
+    env_kwargs["state_init_override"] = None
+
+    if env_kwargs["use_srl"]:
+        env_kwargs["srl_model_path"] = env_kwargs_extra.get("srl_model_path", None)
+        env_kwargs["state_dim"] = getSRLDim(env_kwargs_extra.get("srl_model_path", None))
+        srl_model = MultiprocessSRLModel(num_cpu=args.num_cpu, env_id=args.env, env_kwargs=env_kwargs)
+        env_kwargs["srl_pipe"] = srl_model.pipe
+
+    env_class = registered_env[args.env][0]
+    env = env_class(**env_kwargs)
+
+    # environment norm
+    env_norm = [makeEnv(args.env, args.seed, i, args.log_dir, allow_early_resets=False, env_kwargs=env_kwargs)
+                for i in range(args.num_cpu)]
+    env_norm = DummyVecEnv(env_norm)
+    env_norm = VecNormalize(env_norm, norm_obs=True, norm_reward=False)
+    env_norm = loadRunningAverage(env_norm, load_path_normalise=args.log_custom_policy)
+
+    train_env = vecEnv(env_kwargs, env_class)
+    _, _, algo_args = createEnv(args, train_args, algo_name, algo_class, env_kwargs)
+    tf.reset_default_graph()
+    set_global_seeds(args.seed % 2 ^ 32)
+    printYellow("Compiling Policy function....")
+    model = algo_class.load(load_path, args=algo_args)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    env_thread(args, 0, partition=False)
 
     if not args.no_record_data and args.num_cpu > 1:
         # sleep 1 second, to avoid congruency issues from multiprocess (eg., files still writing)
@@ -415,7 +480,6 @@ def main():
                 preprocessed_data = {}
                 ground_truth_load = np.load(part + "/ground_truth.npz")
                 preprocessed_data_load = np.load(part + "/preprocessed_data.npz")
-
                 for arr in ground_truth_load.files:
                     if arr == "images_path":
                         ground_truth[arr] = np.array(

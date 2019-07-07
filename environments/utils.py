@@ -5,6 +5,7 @@ import os
 
 from gym.envs.registration import registry, patch_deprecated_methods, load
 from stable_baselines import bench
+import numpy as np
 
 
 def dynamicEnvLoad(env_id):
@@ -93,3 +94,40 @@ def _make(id_, env_kwargs=None):
                         max_episode_steps=env.spec.max_episode_steps,
                         max_episode_seconds=env.spec.max_episode_seconds)
     return env
+
+
+def convertScalerToVectorAction(x):
+    """
+    :param x: np.ndarray
+    :return:
+    """
+    counter = 0
+    for i in x:
+        if i == 0:
+            l = np.array([1, 0, 0, 0])
+        elif i == 1:
+            l = np.array([0, 1, 0, 0])
+        elif i == 2:
+            l = np.array([0, 0, 1, 0])
+        else :
+            l = np.array([0, 0, 0, 1])
+        if counter == 0:
+            result = [l]
+        else:
+            result = np.append(result, [l], 0)
+        counter = counter+1
+    return result
+
+
+def compareAction(x, y):
+    """
+
+    :param x:
+    :param y:
+    :return:
+    """
+    assert (len(x) == len(y)), "Both array must have the same length."
+    shared_actions = [i for i in x if i in y]
+    result = len(shared_actions)/len(x)
+
+    return result
