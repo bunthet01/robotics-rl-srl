@@ -1,3 +1,4 @@
+
 from rl_baselines import AlgoType, ActionType
 from rl_baselines.base_classes import BaseRLObject
 from rl_baselines.rl_algorithm.a2c import A2CModel
@@ -12,7 +13,7 @@ from rl_baselines.rl_algorithm.ppo2 import PPO2Model
 from rl_baselines.random_agent import RandomAgentModel
 from rl_baselines.rl_algorithm.sac import SACModel
 from rl_baselines.rl_algorithm.trpo import TRPOModel
-from rl_baselines.supervised_rl.policy_distillation import PolicyDistillationModel
+# from rl_baselines.supervised_rl.policy_distillation import PolicyDistillationModel
 
 # Register, name: (algo class, algo type, list of action types)
 registered_rl = {
@@ -27,8 +28,8 @@ registered_rl = {
     "ppo2":         (PPO2Model, AlgoType.REINFORCEMENT_LEARNING, [ActionType.DISCRETE, ActionType.CONTINUOUS]),
     "random_agent": (RandomAgentModel, AlgoType.OTHER, [ActionType.DISCRETE, ActionType.CONTINUOUS]),
     "sac":          (SACModel, AlgoType.REINFORCEMENT_LEARNING, [ActionType.CONTINUOUS]),
-    "trpo":         (TRPOModel, AlgoType.REINFORCEMENT_LEARNING, [ActionType.DISCRETE, ActionType.CONTINUOUS]),
-    "distillation": (PolicyDistillationModel, AlgoType.REINFORCEMENT_LEARNING, [ActionType.DISCRETE])
+    "trpo":         (TRPOModel, AlgoType.REINFORCEMENT_LEARNING, [ActionType.DISCRETE, ActionType.CONTINUOUS])
+    # "distillation": (PolicyDistillationModel, AlgoType.REINFORCEMENT_LEARNING, [ActionType.DISCRETE])
 }
 
 # Checking validity of the registered RL algorithms

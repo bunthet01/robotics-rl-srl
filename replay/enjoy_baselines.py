@@ -104,7 +104,8 @@ def loadConfigAndSetup(load_args):
         "action_joints": train_args["action_joints"],
         "is_discrete": not train_args["continuous_actions"],
         "random_target": train_args.get('random_target', False),
-        "srl_model": train_args["srl_model"]
+        "srl_model": train_args["srl_model"],
+        "img_shape": train_args.get("img_shape", None)
     }
 
     # load it, if it was defined

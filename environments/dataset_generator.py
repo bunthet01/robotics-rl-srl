@@ -1,3 +1,4 @@
+
 from __future__ import division, absolute_import, print_function
 
 import argparse
@@ -99,10 +100,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
     generated_obs = None
 
     if args.run_policy in ["walker", "custom"]:
-        if args.latest:
-            args.log_dir = latestPath(args.log_custom_policy)
-        else:
-            args.log_dir = args.log_custom_policy
+        args.log_dir = args.log_custom_policy
         args.render = args.display
         args.plotting, args.action_proba = False, False
 
@@ -110,6 +108,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         env_kwargs["srl_model"] = env_kwargs_extra["srl_model"]
         env_kwargs["random_target"] = env_kwargs_extra.get("random_target", False)
         env_kwargs["use_srl"] = env_kwargs_extra.get("use_srl", False)
+        env_kwargs["img_shape"] = env_kwargs_extra.get("img_shape", None)
 
         # TODO REFACTOR
         env_kwargs["simple_continual_target"] = env_kwargs_extra.get("simple_continual_target", False)
