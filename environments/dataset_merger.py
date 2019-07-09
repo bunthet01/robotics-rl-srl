@@ -41,6 +41,10 @@ def main():
             assert args.continual_learning_labels[0] in CONTINUAL_LEARNING_LABELS \
                    and args.continual_learning_labels[1] in CONTINUAL_LEARNING_LABELS, \
                    "Please specify a valid Continual learning label to each dataset to be used for RL distillation !"
+        dataset_1_kwargs = args.merge[0]+"/dataset_config.json"
+        dataset_2_kwargs = args.merge[1]+"/dataset_config.json"
+
+        assert dataset_1_kwargs.get("img_shape", None) == dataset_2_kwargs.get("img_shape", None) , "The images in the two datasets must have the same shape."
 
         # create the output
         os.mkdir(args.merge[2])

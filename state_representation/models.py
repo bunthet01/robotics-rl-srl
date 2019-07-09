@@ -168,8 +168,7 @@ class SRLNeuralNetwork(SRLBaseClass):
                                     losses=losses, split_dimensions=split_dimensions, inverse_model_type=inverse_model_type)
         self.model.eval()
 
-        # self.device = th.device("cuda" if th.cuda.is_available() and cuda else "cpu")
-        self.device = th.device("cpu")
+        self.device = th.device("cuda" if th.cuda.is_available() and cuda else "cpu")
         self.model = self.model.to(self.device)
 
     def load(self, path):

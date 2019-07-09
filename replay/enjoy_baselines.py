@@ -97,6 +97,10 @@ def loadConfigAndSetup(load_args):
 
     env_globals = json.load(open(load_args.log_dir + "env_globals.json", 'r'))
     train_args = json.load(open(load_args.log_dir + "args.json", 'r'))
+    # if train_args.get("img_shape", None) is None:
+    #     img_shape = None #(3,224,224)
+    # else:
+    #     img_shape = tuple(map(int, train_args.get("img_shape", None)[1:-1].split(",")))
 
     env_kwargs = {
         "renders": load_args.render,
@@ -105,7 +109,8 @@ def loadConfigAndSetup(load_args):
         "is_discrete": not train_args["continuous_actions"],
         "random_target": train_args.get('random_target', False),
         "srl_model": train_args["srl_model"],
-        "img_shape": train_args.get("img_shape", None)
+        # "img_shape": img_shape
+        "img_shape" : train_args.get("img_shape", None)
     }
 
     # load it, if it was defined

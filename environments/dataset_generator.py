@@ -3,10 +3,11 @@ from __future__ import division, absolute_import, print_function
 
 import argparse
 import glob
-import multiprocessing
+import multiprocessing 
 import os
 import shutil
 import time
+
 
 import numpy as np
 from stable_baselines import PPO2
@@ -323,6 +324,7 @@ def main():
 
     args = parser.parse_args()
 
+
     assert (args.num_cpu > 0), "Error: number of cpu must be positive and non zero"
     assert (args.max_distance > 0), "Error: max distance must be positive and non zero"
     assert (args.num_episode > 0), "Error: number of episodes must be positive and non zero"
@@ -348,6 +350,7 @@ def main():
 
     # this is done so seed 0 and 1 are different and not simply offset of the same datasets.
     args.seed = np.random.RandomState(args.seed).randint(int(1e10))
+
 
     # File exists, need to deal with it
     if not args.no_record_data and os.path.exists(args.save_path + args.name):
@@ -444,9 +447,14 @@ def main():
         # save the fused outputs
         np.savez(args.save_path + args.name + "/ground_truth.npz", **ground_truth)
         np.savez(args.save_path + args.name + "/preprocessed_data.npz", **preprocessed_data)
+        # save the imgage shape incase of using custom policy 
+        if args.run_policy == "custom":
+            train_args = json.load(open(args.log_custom_policy + "args.json", 'r'))
+            data_set_configs = json.load(open(args.save_path + args.name + "/dataset_config.json", 'w'))
+            data_set_configs["img_shape"] = train_args.get("img_shape", None)
 
-    if args.reward_dist:
-        rewards, counts = np.unique(np.load(args.save_path + args.name + "/preprocessed_data.npz")['rewards'],
+        if args.reward_dist:
+            rewards, counts = np.unique(np.load(args.save_path + args.name + "/preprocessed_data.npz")['rewards'],
                                     return_counts=True)
         counts = ["{:.2f}%".format(val * 100) for val in counts / np.sum(counts)]
         print("reward distribution:")
