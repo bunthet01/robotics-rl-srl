@@ -277,6 +277,8 @@ def main():
                         type=str, default="0", choices=["0", "1", "2", "3", "5", "6", "7", "8"])
     parser.add_argument("--srl-model-path", help="SRL model weights path",
                         type=str, default=None)
+    parser.add_argument("--relative-pos", action='store_true', default=False,
+                        help="For 'ground_truth': use relative position or not.")
     # Ignore unknown args for now
     args, unknown = parser.parse_known_args()
     # os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
@@ -380,6 +382,8 @@ def main():
     ### HACK way to reset image shape !! 
     globals_env_param['RENDER_HEIGHT'] = img_shape[1]
     globals_env_param['RENDER_WIDTH']  = img_shape[2]
+    globals_env_param['RELATIVE_POS'] = args.relative_pos
+
     super_class = registered_env[args.env][1]
     # reccursive search through all the super classes of the asked environment, in order to get all the arguments.
     rec_super_class_lookup = {dict_class: dict_super_class for _, (dict_class, dict_super_class, _, _) in

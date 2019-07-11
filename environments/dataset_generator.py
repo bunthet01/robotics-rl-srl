@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function
 
 import argparse
 import glob
-import multiprocessing 
+import multiprocessing
 import os
 import shutil
 import time
@@ -21,6 +21,7 @@ from torch.autograd import Variable
 
 from environments import ThreadingType
 from environments.registry import registered_env
+from real_robots.constants import USING_OMNIROBOT
 from environments.utils import makeEnv
 from real_robots.constants import *
 from replay.enjoy_baselines import createEnv, loadConfigAndSetup
