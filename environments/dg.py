@@ -34,8 +34,8 @@ import matplotlib.pyplot as plt
 RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
 VALID_MODELS = ["forward", "inverse", "reward", "priors", "episode-prior", "reward-prior", "triplet",
-                "autoencoder", "vae", "dae", "random"]
-VALID_POLICIES = ['walker', 'random', 'ppo2', 'custom']
+                "autoencoder", "vae","cvae", "dae", "random"]
+VALID_POLICIES = [ 'random', 'ppo2', 'custom']
 VALID_ACTIONS = [0, 1, 2, 3]
 
 def main():
@@ -74,7 +74,7 @@ def main():
 
     os.mkdir(args.save_path + args.name)
 
-    srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available())
+    srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available(), env_object=None)
     srl_state_dim = srl_model.state_dim
     srl_model = srl_model.model.model
 
@@ -85,35 +85,25 @@ def main():
     # env_globals = open(args.save_path + args.name + "/env_globals.json", 'w')
     # t = True
     for i in range(args.num_images):
-
-        z = np.random.normal(0, 1, srl_state_dim)
-        # print(z.shape)
-        z = th.tensor([z]).float()
-        c = th.tensor(convertScalerToVectorAction([args.class_action])).float()
-        # print(z.size())
-        # print(c.size())
+        z = th.normal(0,1,srl_state_dim).float()
+        c = convertScalerToVectorAction(th.tensor([args.class_action]))
 
         if th.cuda.is_available():
             z = z.cuda()
             c = c.cuda()
         generated_obs = srl_model.decode_cvae(z, c)
-        # if t:
-        #     print("generated_obs[0]", generated_obs[0])
-        #     print("generated_obs[0].size() ", generated_obs[0].size())
-        #     print("generated_obs.size() ", generated_obs.size())
         generated_obs = deNormalize(detachToNumpy(generated_obs[0]))
-        # if t:
-        #     print("generated_obs.shape ", generated_obs.shape)
-        #     print("generated_obs", generated_obs)
+
+        # save the images
         plt.imshow(generated_obs)
         img_path = args.save_path + args.name+"/class_{}_frame{}.jpg".format(args.class_action, i)
         plt.savefig(img_path)
-        # t = False
 
+        # Append the list of image's path and it's coressponding action
         img_path_array.append(img_path)
         actions_array.append(args.class_action)
     preprocessed_data = [img_path_array, actions_array]
-    # save the fused outputs
+    
     # np.savez(args.save_path + args.name + "/ground_truth.npz", **ground_truth)
     np.savez(args.save_path + args.name + "/preprocessed_data.npz", preprocessed_data)
 

@@ -36,7 +36,7 @@ def getSRLDim(path=None, env_object=None):
         return env_object.getGroundTruthDim()
 
 
-def loadSRLModel(path=None, cuda=False, state_dim=None, env_object=None, img_shape=None):
+def loadSRLModel(path=None, cuda=False, env_object=None):
     """
     Load a trained SRL model, it will try to guess the model type from the path
     :param path: (str) Path to a srl model
@@ -57,6 +57,11 @@ def loadSRLModel(path=None, cuda=False, state_dim=None, env_object=None, img_sha
             exp_config = json.load(f, object_pairs_hook=OrderedDict)
 
         state_dim = exp_config.get('state-dim', None)
+        if exp_config.get('img_shape', None) is None:
+            img_shape = None #(3,224,224)
+        else:
+             img_shape = tuple(map(int, train_args.get("img_shape", None)[1:-1].split(",")))
+
         losses = exp_config.get('losses', None)  # None in the case of baseline models (pca, supervised)
         n_actions = exp_config.get('n_actions', None)  # None in the case of baseline models (pca, supervised)
         model_type = exp_config.get('model-type', None)

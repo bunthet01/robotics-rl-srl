@@ -7,6 +7,7 @@ import multiprocessing
 import os
 import shutil
 import time
+import json
 
 
 import numpy as np
@@ -161,7 +162,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                 walker_path = walkerPath()
 
     if len(args.replay_generative_model) > 0:
-        srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available())
+        srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available(), env_object=None)
         srl_state_dim = srl_model.state_dim
         srl_model = srl_model.model.model
 
@@ -182,16 +183,11 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         if len(args.replay_generative_model) > 0:
 
             sample = Variable(th.randn(1, srl_state_dim))
-            class_action = th.tensor([[0, 1, 0, 0]]).float().cuda()
-            print("sample.shape :", sample.shape)
             if th.cuda.is_available():
                 sample = sample.cuda()
-                if args.replay_generative_model == 'cvae':
-                    generated_obs = srl_model.decode_cvae(sample, class_action)
-                else:
-                    generated_obs = srl_model.decode(sample)
-                generated_obs = generated_obs[0].detach().cpu().numpy()
-                generated_obs = deNormalize(generated_obs)
+            generated_obs = srl_model.decode(sample)
+            generated_obs = generated_obs[0].detach().cpu().numpy()
+            generated_obs = deNormalize(generated_obs)
 
             kwargs_reset['generated_observation'] = generated_obs
         env.action_space.seed(seed)  # this is for the sample() function from gym.space
@@ -228,10 +224,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                     obs = obs.reshape(1, srl_state_dim)
                     obs = th.from_numpy(obs.astype(np.float32)).cuda()
                     z = obs
-                    if args.replay_generative_model == 'cvae':
-                        generated_obs = srl_model.decode_cvae(z, class_action)
-                    else:
-                        generated_obs = srl_model.decode(z)
+                    generated_obs = srl_model.decode(z)
                 else:
                     sample = Variable(th.randn(1, srl_state_dim))
 
@@ -450,15 +443,24 @@ def main():
         # save the imgage shape incase of using custom policy 
         if args.run_policy == "custom":
             train_args = json.load(open(args.log_custom_policy + "args.json", 'r'))
-            data_set_configs = json.load(open(args.save_path + args.name + "/dataset_config.json", 'w'))
-            data_set_configs["img_shape"] = train_args.get("img_shape", None)
+            print("1")
+            with open(args.save_path + args.name + "/dataset_config.json",'r') as feedsjson:
+                feeds = json.load(feedsjson)
+                feeds["img_shape"] = train_args.get("img_shape", None)
+            with open(args.save_path + args.name + "/dataset_config.json", mode='w') as f:
+                f.write(json.dumps(feeds, indent=2))
+                # json.dump({"img_shape":train_args.get("img_shape", None)},f)
+            # data_set_configs = json.load(open(args.save_path + args.name + "/dataset_config.json",'rb'))
+            print("2")
+            # data_set_configs["img_shape"] = train_args.get("img_shape", None)
+            # print("3")
 
         if args.reward_dist:
             rewards, counts = np.unique(np.load(args.save_path + args.name + "/preprocessed_data.npz")['rewards'],
                                     return_counts=True)
-        counts = ["{:.2f}%".format(val * 100) for val in counts / np.sum(counts)]
-        print("reward distribution:")
-        [print(" ", reward, count) for reward, count in list(zip(rewards, counts))]
+            counts = ["{:.2f}%".format(val * 100) for val in counts / np.sum(counts)]
+            print("reward distribution:")
+            [print(" ", reward, count) for reward, count in list(zip(rewards, counts))]
 
 
 if __name__ == '__main__':
