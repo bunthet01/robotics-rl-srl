@@ -10,19 +10,19 @@ from torch.nn import functional as F
 from rl_baselines.base_classes import BaseRLObject
 from srl_zoo.models.base_models import CustomCNN
 from srl_zoo.preprocessing.data_loader import SupervisedDataLoader, DataLoader
-from srl_zoo.utils import loadData
+from srl_zoo.utils import loadData, loadDataCVAE
 from state_representation.models import loadSRLModel, getSRLDim
+from srl_zoo.preprocessing.utils import convertScalerToTensorAction
 
 N_WORKERS = 4
-BATCH_SIZE = 32
-TEST_BATCH_SIZE = 256
+BATCH_SIZE = 8
+TEST_BATCH_SIZE = 8
 VALIDATION_SIZE = 0.2  # 20% of training data for validation
 MAX_BATCH_SIZE_GPU = 256  # For plotting, max batch_size before having memory issues
 RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
 FINE_TUNING = False
 
-CONTINUAL_LEARNING_LABELS = ['CC', 'SC', 'EC', 'SQC']
 CL_LABEL_KEY = "continual_learning_label"
 USE_ADAPTIVE_TEMPERATURE = False
 TEMPERATURES = {'CC': 0.1, 'SC': 0.1, 'EC': 0.1, 'SQC': 0.1, "default": 0.1}
@@ -149,13 +149,14 @@ class PolicyDistillationModel(BaseRLObject):
         print("We assumed SRL training already done")
 
         print('Loading data for distillation ')
-        # training_data, ground_truth, true_states, _ = loadData(args.teacher_data_folder, absolute_path=True)
-        training_data, ground_truth, true_states, _ = loadData(args.teacher_data_folder)
-        rewards, episode_starts = training_data['rewards'], training_data['episode_starts']
+        # training_data, ground_truth, true_states, _ = loadData(args.teacher_data_folder)
+        training_data, ground_truth, _, _ = loadData(args.teacher_data_folder, with_env=False)
 
         images_path = ground_truth['images_path']
+        episode_starts = training_data['episode_starts']
         actions = training_data['actions']
         actions_proba = training_data['actions_proba']
+
         if USE_ADAPTIVE_TEMPERATURE:
             cl_labels = training_data[CL_LABEL_KEY]
         else:
@@ -167,11 +168,14 @@ class PolicyDistillationModel(BaseRLObject):
             images_path = images_path[:limit]
             episode_starts = episode_starts[:limit]
 
-        # images_path_copy = ["srl_zoo/data/" + images_path[k] for k in range(images_path.shape[0])]
         images_path_copy = [images_path[k] for k in range(images_path.shape[0])]
         images_path = np.array(images_path_copy)
 
         num_samples = images_path.shape[0] - 1  # number of samples
+        if args.img_shape is None:
+            self.img_shape = None #(3,224,224)
+        else:
+            self.img_shape = tuple(map(int, args.img_shape[1:-1].split(",")))
 
         # indices for all time steps where the episode continues
         indices = np.array([i for i in range(num_samples) if not episode_starts[i + 1]], dtype='int64')
@@ -181,13 +185,13 @@ class PolicyDistillationModel(BaseRLObject):
         # list is the id of the observation preserved through the training
         minibatchlist = [np.array(sorted(indices[start_idx:start_idx + self.batch_size]))
                          for start_idx in range(0, len(indices) - self.batch_size + 1, self.batch_size)]
-        data_loader = DataLoader(minibatchlist, images_path, n_workers=N_WORKERS, multi_view=False,
-                                 use_triplets=False, is_training=True)
+        data_loader = DataLoader(minibatchlist, images_path, self.img_shape, n_workers=N_WORKERS, multi_view=False,
+                                 use_triplets=False, is_training=True,absolute_path=True)
 
         test_minibatchlist = DataLoader.createTestMinibatchList(len(images_path), MAX_BATCH_SIZE_GPU)
 
-        test_data_loader = DataLoader(test_minibatchlist, images_path, n_workers=N_WORKERS, multi_view=False,
-                                      use_triplets=False, max_queue_len=1, is_training=False)
+        test_data_loader = DataLoader(test_minibatchlist, images_path, self.img_shape, n_workers=N_WORKERS, multi_view=False,
+                                      use_triplets=False, max_queue_len=1, is_training=False,absolute_path=True)
 
         # Number of minibatches used for validation:
         n_val_batches = np.round(VALIDATION_SIZE * len(minibatchlist)).astype(np.int64)
@@ -216,16 +220,12 @@ class PolicyDistillationModel(BaseRLObject):
             print('Action dimension: {}'.format(self.dim_action))
 
         # Here the default SRL model is assumed to be raw_pixels
-        self.state_dim = RENDER_HEIGHT * RENDER_WIDTH * 3
-        simg_shape = env_kwargs.get("img_shape", None)
-        if args.img_shape is None:
-        	self.img_shape = None #(3,224,224)
-        else:
-        	self.img_shape = tuple(map(int, args.img_shape[1:-1].split(",")))
+        self.state_dim = RENDER_HEIGHT * RENDER_WIDTH * 3                                                   # why                                                    
         self.srl_model = None
         print("env_kwargs[srl_model] ",env_kwargs["srl_model"])
         # TODO: add sanity checks & test for all possible SRL for distillation
-        if env_kwargs["srl_model"] == "raw_pixels":
+        if env_kwargs["srl_model"] == "raw_pixels":                                                       
+            # if the pilicy distillation is used with raw pixel
             self.model = CNNPolicy(n_actions, self.img_shape)
             learnable_params = self.model.parameters()
             learning_rate = 1e-3
@@ -285,7 +285,7 @@ class PolicyDistillationModel(BaseRLObject):
                 if not args.continuous_actions:
                     # Discrete actions, rearrange action to have n_minibatch ligns and one column,
                     # containing the int action
-                    actions_st = th.from_numpy(actions_st).requires_grad_(False).to(self.device)
+                    actions_st = convertScalerToTensorAction(th.from_numpy(actions_st)).requires_grad_(False).to(self.device)
                     actions_proba_st = th.from_numpy(actions_proba_st).requires_grad_(False).to(self.device)
                 else:
                     # Continuous actions, rearrange action to have n_minibatch ligns and dim_action columns
@@ -301,9 +301,11 @@ class PolicyDistillationModel(BaseRLObject):
                     state = obs.detach()
                 pred_action = self.model.forward(state)
 
-                loss = self.loss_fn_kd(pred_action,
-                                       actions_proba_st.float(),
-                                       labels=cl_labels_st, adaptive_temperature=USE_ADAPTIVE_TEMPERATURE)
+                # loss = self.loss_fn_kd(pred_action,
+                #                        actions_proba_st.float(),
+                #                        labels=cl_labels_st, adaptive_temperature=USE_ADAPTIVE_TEMPERATURE)
+
+                loss = self.loss_mse(pred_action,  actions_proba_st.float())
 
                 loss.backward()
                 if validation_mode:

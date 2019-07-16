@@ -56,10 +56,11 @@ def loadSRLModel(path=None, cuda=False, env_object=None):
             exp_config = json.load(f, object_pairs_hook=OrderedDict)
 
         state_dim = exp_config.get('state-dim', None)
+        class_dim = exp_config.get('class_dim', None)
         if exp_config.get('img_shape', None) is None:
             img_shape = None #(3,224,224)
         else:
-             img_shape = tuple(map(int, train_args.get("img_shape", None)[1:-1].split(",")))
+             img_shape = tuple(map(int, exp_config.get("img_shape", None)[1:-1].split(",")))
 
         losses = exp_config.get('losses', None)  # None in the case of baseline models (pca, supervised)
         n_actions = exp_config.get('n_actions', None)  # None in the case of baseline models (pca, supervised)
@@ -100,7 +101,7 @@ def loadSRLModel(path=None, cuda=False, env_object=None):
             new_img_shape = (6,)+img_shape[1:]
         else:
             new_img_shape = img_shape
-        model = SRLNeuralNetwork(state_dim=state_dim, cuda=cuda, img_shape=new_img_shape, model_type=model_type, n_actions=n_actions, losses=losses,
+        model = SRLNeuralNetwork(state_dim=state_dim, cuda=cuda, class_dim=class_dim, img_shape=new_img_shape, model_type=model_type, n_actions=n_actions, losses=losses,
                                  split_dimensions=split_dimensions, inverse_model_type=inverse_model_type)
 
     model_name = model_type
@@ -148,7 +149,7 @@ class SRLBaseClass(object):
 class SRLNeuralNetwork(SRLBaseClass):
     """SRL using a neural network as a state representation model"""
 
-    def __init__(self, state_dim, cuda, img_shape=None, model_type="custom_cnn", n_actions=None, losses=None, split_dimensions=None,
+    def __init__(self, state_dim, cuda, class_dim, img_shape=None, model_type="custom_cnn", n_actions=None, losses=None, split_dimensions=None,
                  inverse_model_type="linear"):
         """
         :param state_dim: (int)
@@ -168,7 +169,7 @@ class SRLNeuralNetwork(SRLBaseClass):
             elif model_type == "resnet":
                 self.model = ConvolutionalNetwork(state_dim)
         else:
-            self.model = SRLModules(state_dim=state_dim, cuda=cuda, img_shape=self.img_shape, action_dim=n_actions, model_type=model_type,
+            self.model = SRLModules(state_dim=state_dim, cuda=cuda, class_dim=class_dim, img_shape=self.img_shape, action_dim=n_actions, model_type=model_type,
                                     losses=losses, split_dimensions=split_dimensions, inverse_model_type=inverse_model_type)
         self.model.eval()
 

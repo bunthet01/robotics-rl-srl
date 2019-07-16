@@ -186,10 +186,10 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
             sample = Variable(th.randn(1, srl_state_dim))
             if th.cuda.is_available():
                 sample = sample.cuda()
+
             generated_obs = srl_model.decode(sample)
             generated_obs = generated_obs[0].detach().cpu().numpy()
             generated_obs = deNormalize(generated_obs)
-
             kwargs_reset['generated_observation'] = generated_obs
         env.action_space.seed(seed)  # this is for the sample() function from gym.space
         obs = env.reset(**kwargs_reset)
@@ -235,7 +235,6 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                     generated_obs = srl_model.decode(sample)
                 generated_obs = generated_obs[0].detach().cpu().numpy()
                 generated_obs = deNormalize(generated_obs)
-
             action_to_step = action[0]
             kwargs_step = {k: v for (k, v) in [("generated_observation", generated_obs),
                                                ("action_proba", action_proba),
@@ -290,7 +289,7 @@ def main():
                              '(random, localy pretrained ppo2, pretrained custom policy)')
     parser.add_argument('--log-custom-policy', type=str, default='',
                         help='Logs of the custom pretained policy to run for data collection')
-    parser.add_argument('-rgm', '--replay-generative-model', type=str, default="", choices=['vae', 'cvae'],
+    parser.add_argument('-rgm', '--replay-generative-model', type=str, default="", choices=['vae', 'cvae','autoencoder'],
                         help='Generative model to replay for generating a dataset (for Continual Learning purposes)')
     parser.add_argument('--log-generative-model', type=str, default='',
                         help='Logs of the custom pretained policy to run for data collection')
@@ -444,17 +443,11 @@ def main():
         # save the imgage shape incase of using custom policy 
         if args.run_policy == "custom":
             train_args = json.load(open(args.log_custom_policy + "args.json", 'r'))
-            print("1")
             with open(args.save_path + args.name + "/dataset_config.json",'r') as feedsjson:
                 feeds = json.load(feedsjson)
                 feeds["img_shape"] = train_args.get("img_shape", None)
             with open(args.save_path + args.name + "/dataset_config.json", mode='w') as f:
                 f.write(json.dumps(feeds, indent=2))
-                # json.dump({"img_shape":train_args.get("img_shape", None)},f)
-            # data_set_configs = json.load(open(args.save_path + args.name + "/dataset_config.json",'rb'))
-            print("2")
-            # data_set_configs["img_shape"] = train_args.get("img_shape", None)
-            # print("3")
 
         if args.reward_dist:
             rewards, counts = np.unique(np.load(args.save_path + args.name + "/preprocessed_data.npz")['rewards'],

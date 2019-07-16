@@ -274,7 +274,7 @@ def main():
     parser.add_argument('--img-shape', type=str, default="(3,128,128)",
                         help="Image shape of environment.")
     parser.add_argument("--gpu-num", help="Choose the number of GPU (CUDA_VISIBLE_DEVICES).",
-                        type=str, default="0", choices=["0", "1", "2", "3", "5", "6", "7", "8"])
+                        type=str, default="1", choices=["0", "1", "2", "3", "5", "6", "7", "8"])
     parser.add_argument("--srl-model-path", help="SRL model weights path",
                         type=str, default=None)
     parser.add_argument("--relative-pos", action='store_true', default=False,
