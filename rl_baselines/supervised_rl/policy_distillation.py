@@ -17,8 +17,8 @@ from srl_zoo.preprocessing.utils import convertScalerToTensorAction
 N_WORKERS = 4
 BATCH_SIZE = 8
 TEST_BATCH_SIZE = 8
-VALIDATION_SIZE = 0.2  # 20% of training data for validation
-MAX_BATCH_SIZE_GPU = 256  # For plotting, max batch_size before having memory issues
+VALIDATION_SIZE = 0.2       # 20% of training data for validation
+MAX_BATCH_SIZE_GPU = 256    # For plotting, max batch_size before having memory issues
 RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
 FINE_TUNING = False
@@ -186,12 +186,12 @@ class PolicyDistillationModel(BaseRLObject):
         minibatchlist = [np.array(sorted(indices[start_idx:start_idx + self.batch_size]))
                          for start_idx in range(0, len(indices) - self.batch_size + 1, self.batch_size)]
         data_loader = DataLoader(minibatchlist, images_path, self.img_shape, n_workers=N_WORKERS, multi_view=False,
-                                 use_triplets=False, is_training=True,absolute_path=True)
+                                 use_triplets=False, is_training=True,absolute_path=False)
 
         test_minibatchlist = DataLoader.createTestMinibatchList(len(images_path), MAX_BATCH_SIZE_GPU)
 
         test_data_loader = DataLoader(test_minibatchlist, images_path, self.img_shape, n_workers=N_WORKERS, multi_view=False,
-                                      use_triplets=False, max_queue_len=1, is_training=False,absolute_path=True)
+                                      use_triplets=False, max_queue_len=1, is_training=False,absolute_path=False)
 
         # Number of minibatches used for validation:
         n_val_batches = np.round(VALIDATION_SIZE * len(minibatchlist)).astype(np.int64)

@@ -1,0 +1,101 @@
+#  Steps for Generative Replay(Without using the )
+
+
+## 1 - Train reinforcement learning models 
+
+### 1.1) - Generate datasets for SRL (random policy)
+
+```
+
+cd robotics-rl-srl
+# Task_1: random target reaching 
+python -m environments.dataset_generator --num-cpu 6 --name Omnibot_random_simple --env OmnirobotEnv-v0 --simple-continual --num-episode 250 -f
+# Task_2: Circular moving
+python -m environments.dataset_generator --num-cpu 6 --name Omnibot_circular --env OmnirobotEnv-v0 --circular-continual --num-episode 250 -f
+
+```
+### 1.2) Train SRL
+
+```
+
+cd srl_zoo
+# Task_1: random target reaching 
+python train.py --data-folder data/Omnibot_random_simple  -bs 32 --epochs 20 --state-dim 200 --losses autoencoder:1:198 reward:1:-1 inverse:1:2 --figdir logs/figures_srl_split_task_1
+# Task_2: Circular moving
+python train.py --data-folder data/Omnibot_circular  -bs 32 --epochs 20 --state-dim 200  --losses autoencoder inverse --figdir logs/figures_srl_ae_inverse_task_2 
+
+```
+
+### 1.3) Train policy
+
+```
+
+cd ..
+# Task_1: random target reaching  
+python -m rl_baselines.train --algo ppo2 --srl-model arg.srl_model --srl-model-path srl_zoo/*path2srl_model* --num-timesteps 5000000 --env OmnirobotEnv-v0 --log-dir logs/simple/  --num-cpu 6 --simple-continual 
+# Task_2: Circular moving
+python -m rl_baselines.train --algo ppo2 --srl-model arg.srl_model --srl-model-path srl_zoo/*path2srl_model*--num-timesteps 5000000 --env OmnirobotEnv-v0 --log-dir logs/circular/  --num-cpu 6 --circular-continual
+
+```
+## 2 - Train generative model
+
+### Generate on-policy datasets
+```
+
+# Task_1: random target reaching 
+python -m environments.dataset_generator --env OmnirobotEnv-v0 --num-episode 100 --run-policy custom --log-custom-policy logs/*path2policy* --save-path srl_zoo/data/ --name reaching_on_policy -sc --short-episodes --num-cpu 6
+# Task_2: Circular moving
+python -m environments.dataset_generator --env OmnirobotEnv-v0 --num-episode 100 --run-policy custom --log-custom-policy logs/*path2policy* --save-path srl_zoo/data/ --name circular_on_policy -sc --short-episodes --num-cpu 6
+
+```
+### train generative model
+
+```
+
+cd srl_zoo
+# Task_1: random target reaching
+python train.py --data-folder data/reaching_on_policy  -bs 32 --epochs 20 --state-dim 200 --losses  --figdir logs/figures_cvae_reaching_on_policy  --gpu-num 1
+# Task_2: Circular moving
+python train.py --data-folder data/circular_on_policy  -bs 32 --epochs 20 --state-dim 200 --losses  --figdir logs/figures_cvae_reaching_on_policy  --gpu-num 1 
+
+```
+## 3 - Train distillation 
+### Generate dataset from generative model
+
+```
+
+# Task_1: random target reaching
+python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask1* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_reaching_on_policy/ 
+# Task_2: Circular moving
+python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask2* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_circular_on_policy/ 
+
+```
+### Merge the 2 datasets 
+
+```
+
+(/ ! \ it removes the generated datasets "generative_reaching_on_policy" and "generative_circular_on_policy" from their directory and replaced by the merged dataset )
+
+python -m environments.dataset_merger --merge /data/generative_circular_on_policy/ srl_zoo/data/generative_reaching_on_policy/ data/merge_generative_CC_SC
+
+```
+### Train distillation 
+
+```
+
+python -m rl_baselines.train --algo distillation --srl-model raw_pixels --env OmnirobotEnv-v0 --log-dir logs/generative_CL_SC_CC/ --teacher-data-folder merge_generative_CC_SC/  -cc --epochs-distillation 20
+
+```
+## 4 - Evaluation of distilled model on each task
+
+
+```
+
+# Evaluation on task_1: random target reaching
+python -m replay.enjoy_baselines --log-dir logs/*path2ditilled_policy* --num-timesteps 10000 --render --action-proba -sc
+# Evaluation on task_2: Circular moving
+python -m replay.enjoy_baselines --log-dir logs/*path2ditilled_policy* --num-timesteps 10000 --render --action-proba -sc
+
+```
+
+

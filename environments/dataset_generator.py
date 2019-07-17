@@ -265,8 +265,8 @@ def main():
     parser.add_argument('--name', type=str, default='kuka_button', help='Folder name for the output')
     parser.add_argument('--env', type=str, default='KukaButtonGymEnv-v0', help='The environment wanted',
                         choices=list(registered_env.keys()))
-    parser.add_argument('--display', action='store_true', default=False)                                                #
-    parser.add_argument('--no-record-data', action='store_true', default=False)                                         #
+    parser.add_argument('--display', action='store_true', default=False)                                                
+    parser.add_argument('--no-record-data', action='store_true', default=False)                                         
     parser.add_argument('--max-distance', type=float, default=0.28,
                         help='Beyond this distance from the goal, the agent gets a negative reward')
     parser.add_argument('-c', '--continuous-actions', action='store_true', default=False)
@@ -307,13 +307,7 @@ def main():
                         help='Green square target for task 3 of continual learning scenario. ' +
                              'The task is: robot should turn in square around the target.')
     parser.add_argument('--short-episodes', action='store_true', default=False,
-                        help='Generate short episodes (only 10 contacts with the target allowed).')
-    parser.add_argument('--use-cvae', action='store_true', default=False, help='Use CVAE to generate images given class'
-                                                                               'of actions')
-    parser.add_argument('--class-action', type=int, choices=VALID_ACTIONS, help='Class of actions to '
-                                                                                           'for images generation')
-    parser.add_argument('--num-testing-action', default=100, help='number of action to test in cvae-testing mode')
-    parser.add_argument('--cvae-testing', action='store_true', default=False, help='use to test cvae performance')
+                        help='Generate short episodes (only 10 contacts with the target allowed).') 
 
     args = parser.parse_args()
 
@@ -440,6 +434,7 @@ def main():
         # save the fused outputs
         np.savez(args.save_path + args.name + "/ground_truth.npz", **ground_truth)
         np.savez(args.save_path + args.name + "/preprocessed_data.npz", **preprocessed_data)
+
         # save the imgage shape incase of using custom policy 
         if args.run_policy == "custom":
             train_args = json.load(open(args.log_custom_policy + "args.json", 'r'))
