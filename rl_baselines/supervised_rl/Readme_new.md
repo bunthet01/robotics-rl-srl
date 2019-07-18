@@ -20,9 +20,9 @@ python -m environments.dataset_generator --num-cpu 6 --name Omnibot_circular --e
 
 cd srl_zoo
 # Task_1: random target reaching 
-python train.py --data-folder data/Omnibot_random_simple  -bs 32 --epochs 20 --state-dim 200 --losses autoencoder:1:198 reward:1:-1 inverse:1:2 --figdir logs/figures_srl_split_task_1
+python train.py --data-folder data/Omnibot_random_simple  -bs 32 --epochs 20 --state-dim 200 --losses autoencoder:1:198 reward:1:-1 inverse:1:2 --figdir logs/figures_srl_split_task_1/
 # Task_2: Circular moving
-python train.py --data-folder data/Omnibot_circular  -bs 32 --epochs 20 --state-dim 200  --losses autoencoder inverse --figdir logs/figures_srl_ae_inverse_task_2 
+python train.py --data-folder data/Omnibot_circular  -bs 32 --epochs 20 --state-dim 200  --losses autoencoder inverse --figdir logs/figures_srl_ae_inverse_task_2/ 
 
 ```
 For the  "--losses", you can refer to its choices in srl_zoo/train.py.
