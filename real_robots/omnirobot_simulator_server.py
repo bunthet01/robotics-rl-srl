@@ -428,6 +428,7 @@ class OmniRobotSimulatorSocket(OmnirobotManagerBase):
         self._random_target = self.new_args["random_target"]
         if self.new_args["simple_continual_target"]:
             self._random_target = True
+        print("self._random_target in omnibot sim server: ",self._random_target)
         self.state_init_override = self.new_args['state_init_override']
         self.resetEpisode()  # for a random target initial position
 
@@ -449,7 +450,7 @@ class OmniRobotSimulatorSocket(OmnirobotManagerBase):
         ) * NOISE_VAR_ROBOT_SIZE_PROPOTION + 1.0
 
         # target reset
-        if self._random_target or self.episode_idx == 0:
+        if self._random_target:
             random_init_x = np.random.random_sample() * (TARGET_MAX_X - TARGET_MIN_X) + \
                 TARGET_MIN_X
             random_init_y = np.random.random_sample() * (TARGET_MAX_Y - TARGET_MIN_Y) + \

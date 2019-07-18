@@ -25,6 +25,7 @@ python train.py --data-folder data/Omnibot_random_simple  -bs 32 --epochs 20 --s
 python train.py --data-folder data/Omnibot_circular  -bs 32 --epochs 20 --state-dim 200  --losses autoencoder inverse --figdir logs/figures_srl_ae_inverse_task_2 
 
 ```
+For the  "--losses", you can refer to its choices in srl_zoo/train.py.
 
 ### 1.3) Train policy
 
@@ -37,6 +38,8 @@ python -m rl_baselines.train --algo ppo2 --srl-model arg.srl_model --srl-model-p
 python -m rl_baselines.train --algo ppo2 --srl-model arg.srl_model --srl-model-path srl_zoo/*path2srl_model*--num-timesteps 5000000 --env OmnirobotEnv-v0 --log-dir logs/circular/  --num-cpu 6 --circular-continual
 
 ```
+For "--srl-model-path", it must be finished by "srl_model.pth".
+For "--srl-model", have a look in "robotics-rl-srl/state_representation/registry.py" and add more model as you want with this form: "*name_of_model*": (SRLType.SRL, None)
 ## 2 - Train generative model
 
 ### Generate on-policy datasets
@@ -54,22 +57,23 @@ python -m environments.dataset_generator --env OmnirobotEnv-v0 --num-episode 100
 
 cd srl_zoo
 # Task_1: random target reaching
-python train.py --data-folder data/reaching_on_policy  -bs 32 --epochs 20 --state-dim 200 --losses  --figdir logs/figures_cvae_reaching_on_policy  --gpu-num 1
+python train.py --data-folder data/reaching_on_policy  -bs 32 --epochs 20 --state-dim 200 --losses  cvae --figdir logs/figures_cvae_reaching_on_policy  --gpu-num 1
 # Task_2: Circular moving
-python train.py --data-folder data/circular_on_policy  -bs 32 --epochs 20 --state-dim 200 --losses  --figdir logs/figures_cvae_reaching_on_policy  --gpu-num 1 
+python train.py --data-folder data/circular_on_policy  -bs 32 --epochs 20 --state-dim 200 --losses  cvae --figdir logs/figures_cvae_circular_on_policy  --gpu-num 1 
 
 ```
 ## 3 - Train distillation 
 ### Generate dataset from generative model
 
 ```
-
+cd ..
 # Task_1: random target reaching
 python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask1* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_reaching_on_policy/ 
 # Task_2: Circular moving
 python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask2* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_circular_on_policy/ 
 
 ```
+The results will be in "robotics-rl-srl/data".
 ### Merge the 2 datasets 
 
 ```

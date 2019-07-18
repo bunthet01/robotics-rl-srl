@@ -152,7 +152,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         # Additional env when using a trained agent to generate data
         train_env = vecEnv(env_kwargs, env_class)
         if use_ppo2 or args.run_policy=='ppo2':
-        	model = PPO2(CnnPolicy, train_env).learn(args.ppo2_timesteps)
+            model = PPO2(CnnPolicy, train_env).learn(args.ppo2_timesteps)
         else:
             _, _, algo_args = createEnv(args, train_args, algo_name, algo_class, env_kwargs)
             tf.reset_default_graph()

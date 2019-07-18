@@ -26,8 +26,8 @@ if USING_OMNIROBOT_SIMULATOR:
 else:
     from real_robots.utils import recvMatrix
 
-#RENDER_HEIGHT = 224
-#RENDER_WIDTH = 224
+RENDER_HEIGHT = 224
+RENDER_WIDTH = 224
 RELATIVE_POS = True
 N_CONTACTS_BEFORE_TERMINATION = 15 #10
 
@@ -97,20 +97,17 @@ class OmniRobotEnv(SRLGymEnv):
         self.episode_terminated = False
         self.state_dim = state_dim
         if img_shape is None:
-            RENDER_HEIGHT = 224
-            RENDER_WIDTH = 224
             self.img_shape = (3, RENDER_HEIGHT, RENDER_WIDTH)
         else:
             self.img_shape = img_shape
-        print("self.img_shape", self.img_shape)
         self._renders = renders
         self._shape_reward = shape_reward
         self.cuda = th.cuda.is_available()
         self.target_pos = None
         self.saver = None
         self._random_target = random_target
-        print("self._random_target", self._random_target )
         self.simple_continual_target = simple_continual_target
+        print("self.simple_continual_target", self.simple_continual_target)
         self.circular_continual_move = circular_continual_move
         self.square_continual_move = square_continual_move
         self.eight_continual_move = eight_continual_move
@@ -146,7 +143,9 @@ class OmniRobotEnv(SRLGymEnv):
                                                    circular_continual_move=circular_continual_move,
                                                    square_continual_move=square_continual_move,
                                                    eight_continual_move=eight_continual_move,
-                output_size=[self.img_shape[2], self.img_shape[1]], random_target=self._random_target, state_init_override=state_init_override)
+                                                   output_size=[self.img_shape[2], self.img_shape[1]],
+                                                   random_target=self._random_target,
+                                                   state_init_override=state_init_override)
         else:
             # Initialize Baxter effector by connecting to the Gym bridge ROS node:
             self.context = zmq.Context()
@@ -405,11 +404,11 @@ class OmniRobotEnv(SRLGymEnv):
         # transform the corresponding points into cropped image
         self.boundary_coner_pixel_pos = self.boundary_coner_pixel_pos - (np.array(ORIGIN_SIZE) -
                                                                          np.array(CROPPED_SIZE)).reshape(2, 1) / 2.0
-        
+
         # transform the corresponding points into resized image (self.img_shape[2], self.img_shape[1])
         self.boundary_coner_pixel_pos[0, :] *= self.img_shape[2]/CROPPED_SIZE[0]
         self.boundary_coner_pixel_pos[1, :] *= self.img_shape[1]/CROPPED_SIZE[1]
-        
+
         self.boundary_coner_pixel_pos = np.around(self.boundary_coner_pixel_pos).astype(np.int)
 
         # Create square for vizu of objective in continual square task
@@ -430,7 +429,7 @@ class OmniRobotEnv(SRLGymEnv):
             self.boundary_coner_pixel_pos_continual = self.boundary_coner_pixel_pos_continual - (
                         np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)).reshape(2, 1) / 2.0
 
-            # transform the corresponding points into resized image (self.img_shape[2] , self.img_shape[1] )
+            # transform the corresponding points into resized image (self.img_shape[2], self.img_shape[1])
             self.boundary_coner_pixel_pos_continual[0, :] *= self.img_shape[2] / CROPPED_SIZE[0]
             self.boundary_coner_pixel_pos_continual[1, :] *= self.img_shape[1] / CROPPED_SIZE[1]
 
@@ -455,7 +454,7 @@ class OmniRobotEnv(SRLGymEnv):
             self.boundary_coner_pixel_pos_continual = self.boundary_coner_pixel_pos_continual - (
                         np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)) / 2.0
 
-            # transform the corresponding points into resized image (self.img_shape[2] , self.img_shape[1] )
+            # transform the corresponding points into resized image (self.img_shape[2], self.img_shape[1])
             self.boundary_coner_pixel_pos_continual[0] *= self.img_shape[2] / CROPPED_SIZE[0]
             self.boundary_coner_pixel_pos_continual[1] *= self.img_shape[1] / CROPPED_SIZE[1]
 
