@@ -45,7 +45,7 @@ python -m rl_baselines.train --algo ppo2 --srl-model arg.srl_model --srl-model-p
 # Task_1: random target reaching 
 python -m environments.dataset_generator --env OmnirobotEnv-v0 --num-episode 100 --run-policy custom --log-custom-policy logs/*path2policy* --save-path srl_zoo/data/ --name reaching_on_policy -sc --short-episodes --num-cpu 6
 # Task_2: Circular moving
-python -m environments.dataset_generator --env OmnirobotEnv-v0 --num-episode 100 --run-policy custom --log-custom-policy logs/*path2policy* --save-path srl_zoo/data/ --name circular_on_policy -sc --short-episodes --num-cpu 6
+python -m environments.dataset_generator --env OmnirobotEnv-v0 --num-episode 100 --run-policy custom --log-custom-policy logs/*path2policy* --save-path srl_zoo/data/ --name circular_on_policy -cc --short-episodes --num-cpu 6
 
 ```
 ### train generative model
@@ -94,7 +94,7 @@ python -m rl_baselines.train --algo distillation --srl-model raw_pixels --env Om
 # Evaluation on task_1: random target reaching
 python -m replay.enjoy_baselines --log-dir logs/*path2ditilled_policy* --num-timesteps 10000 --render --action-proba -sc
 # Evaluation on task_2: Circular moving
-python -m replay.enjoy_baselines --log-dir logs/*path2ditilled_policy* --num-timesteps 10000 --render --action-proba -sc
+python -m replay.enjoy_baselines --log-dir logs/*path2ditilled_policy* --num-timesteps 10000 --render --action-proba -cc
 
 ```
 

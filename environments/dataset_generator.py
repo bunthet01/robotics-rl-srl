@@ -127,7 +127,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
             env_kwargs["state_dim"] = getSRLDim(env_kwargs_extra.get("srl_model_path", None))
             srl_model = MultiprocessSRLModel(num_cpu=args.num_cpu, env_id=args.env, env_kwargs=env_kwargs)
             env_kwargs["srl_pipe"] = srl_model.pipe
-
+    print("random target", env_kwargs["random_target"])
     env_class = registered_env[args.env][0]
     env = env_class(**env_kwargs)
 
@@ -200,7 +200,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
         while not done:
             env.render()
             # Policy to run on the fly - to be trained before generation
-            if use_ppo2 or args.run_policy == 'ppo2':
+            if use_ppo2 or args.run_policy == "ppo2":
                 action, _ = model.predict([obs])
 
             # Custom pre-trained Policy (SRL or End-to-End)
@@ -274,7 +274,7 @@ def main():
     parser.add_argument('-f', '--force', action='store_true', default=False,
                         help='Force the save, even if it overrides something else,' +
                              ' including partial parts if they exist')
-    parser.add_argument('-r', '--random-target', action='store_true', default=False,
+    parser.add_argument('--random-target','-r',  action='store_true', default=False,
                         help='Set the button to a random position')
     parser.add_argument('--multi-view', action='store_true', default=False, help='Set a second camera to the scene')
     parser.add_argument('--shape-reward', action='store_true', default=False,

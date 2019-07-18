@@ -26,10 +26,10 @@ if USING_OMNIROBOT_SIMULATOR:
 else:
     from real_robots.utils import recvMatrix
 
-RENDER_HEIGHT = 224
-RENDER_WIDTH = 224
+#RENDER_HEIGHT = 224
+#RENDER_WIDTH = 224
 RELATIVE_POS = True
-N_CONTACTS_BEFORE_TERMINATION = 15 #10
+N_CONTACTS_BEFORE_TERMINATION = 3
 
 DELTA_POS = 0.1  # DELTA_POS for continuous actions
 N_DISCRETE_ACTIONS = 4
@@ -97,6 +97,8 @@ class OmniRobotEnv(SRLGymEnv):
         self.episode_terminated = False
         self.state_dim = state_dim
         if img_shape is None:
+            RENDER_HEIGHT = 224
+            RENDER_WIDTH = 224
             self.img_shape = (3, RENDER_HEIGHT, RENDER_WIDTH)
         else:
             self.img_shape = img_shape
@@ -106,6 +108,7 @@ class OmniRobotEnv(SRLGymEnv):
         self.target_pos = None
         self.saver = None
         self._random_target = random_target
+        print("self._random_target", self._random_target )
         self.simple_continual_target = simple_continual_target
         self.circular_continual_move = circular_continual_move
         self.square_continual_move = square_continual_move
@@ -426,9 +429,9 @@ class OmniRobotEnv(SRLGymEnv):
             self.boundary_coner_pixel_pos_continual = self.boundary_coner_pixel_pos_continual - (
                         np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)).reshape(2, 1) / 2.0
 
-            # transform the corresponding points into resized image (RENDER_WIDHT, RENDER_HEIGHT)
-            self.boundary_coner_pixel_pos_continual[0, :] *= RENDER_WIDTH / CROPPED_SIZE[0]
-            self.boundary_coner_pixel_pos_continual[1, :] *= RENDER_HEIGHT / CROPPED_SIZE[1]
+            # transform the corresponding points into resized image (self.img_shape[2] , self.img_shape[1] )
+            self.boundary_coner_pixel_pos_continual[0, :] *= self.img_shape[2] / CROPPED_SIZE[0]
+            self.boundary_coner_pixel_pos_continual[1, :] *= self.img_shape[1] / CROPPED_SIZE[1]
 
             self.boundary_coner_pixel_pos_continual = np.around(self.boundary_coner_pixel_pos_continual).astype(np.int)
 
@@ -437,9 +440,9 @@ class OmniRobotEnv(SRLGymEnv):
                 pos_transformer.phyPosGround2PixelPos([0, 0], return_distort_image_pos=False).squeeze()
             self.center_coordinates = self.center_coordinates - (
                 np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)) / 2.0
-            # transform the corresponding points into resized image (RENDER_WIDHT, RENDER_HEIGHT)
-            self.center_coordinates[0] *= RENDER_WIDTH / CROPPED_SIZE[0]
-            self.center_coordinates[1] *= RENDER_HEIGHT / CROPPED_SIZE[1]
+            # transform the corresponding points into resized image (self.img_shape[2], self.img_shape[1])
+            self.center_coordinates[0] *= self.img_shape[2] / CROPPED_SIZE[0]
+            self.center_coordinates[1] *= self.img_shape[1] / CROPPED_SIZE[1]
 
             self.center_coordinates = np.around(self.center_coordinates).astype(np.int)
 
@@ -451,9 +454,9 @@ class OmniRobotEnv(SRLGymEnv):
             self.boundary_coner_pixel_pos_continual = self.boundary_coner_pixel_pos_continual - (
                         np.array(ORIGIN_SIZE) - np.array(CROPPED_SIZE)) / 2.0
 
-            # transform the corresponding points into resized image (RENDER_WIDHT, RENDER_HEIGHT)
-            self.boundary_coner_pixel_pos_continual[0] *= RENDER_WIDTH / CROPPED_SIZE[0]
-            self.boundary_coner_pixel_pos_continual[1] *= RENDER_HEIGHT / CROPPED_SIZE[1]
+            # transform the corresponding points into resized image (self.img_shape[2] , self.img_shape[1] )
+            self.boundary_coner_pixel_pos_continual[0] *= self.img_shape[2] / CROPPED_SIZE[0]
+            self.boundary_coner_pixel_pos_continual[1] *= self.img_shape[1] / CROPPED_SIZE[1]
 
             self.boundary_coner_pixel_pos_continual = np.around(self.boundary_coner_pixel_pos_continual).astype(np.int)
 
