@@ -29,7 +29,7 @@ else:
 #RENDER_HEIGHT = 224
 #RENDER_WIDTH = 224
 RELATIVE_POS = True
-N_CONTACTS_BEFORE_TERMINATION = 3
+N_CONTACTS_BEFORE_TERMINATION = 15 #10
 
 DELTA_POS = 0.1  # DELTA_POS for continuous actions
 N_DISCRETE_ACTIONS = 4
@@ -102,6 +102,7 @@ class OmniRobotEnv(SRLGymEnv):
             self.img_shape = (3, RENDER_HEIGHT, RENDER_WIDTH)
         else:
             self.img_shape = img_shape
+        print("self.img_shape", self.img_shape)
         self._renders = renders
         self._shape_reward = shape_reward
         self.cuda = th.cuda.is_available()

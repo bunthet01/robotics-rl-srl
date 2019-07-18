@@ -163,7 +163,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                 walker_path = walkerPath()
 
     if len(args.replay_generative_model) > 0:
-        srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available(), env_object=None)
+        srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available())
         srl_state_dim = srl_model.state_dim
         srl_model = srl_model.model.model
 
@@ -191,7 +191,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
             generated_obs = generated_obs[0].detach().cpu().numpy()
             generated_obs = deNormalize(generated_obs)
             kwargs_reset['generated_observation'] = generated_obs
-        env.action_space.seed(seed)  # this is for the sample() function from gym.space
+        # env.action_space.seed(seed)  # this is for the sample() function from gym.space
         obs = env.reset(**kwargs_reset)
         done = False
         action_proba = None
@@ -274,7 +274,7 @@ def main():
     parser.add_argument('-f', '--force', action='store_true', default=False,
                         help='Force the save, even if it overrides something else,' +
                              ' including partial parts if they exist')
-    parser.add_argument('--random-target','-r',  action='store_true', default=False,
+    parser.add_argument('-r', '--random-target', action='store_true', default=False,
                         help='Set the button to a random position')
     parser.add_argument('--multi-view', action='store_true', default=False, help='Set a second camera to the scene')
     parser.add_argument('--shape-reward', action='store_true', default=False,
@@ -289,7 +289,7 @@ def main():
                              '(random, localy pretrained ppo2, pretrained custom policy)')
     parser.add_argument('--log-custom-policy', type=str, default='',
                         help='Logs of the custom pretained policy to run for data collection')
-    parser.add_argument('-rgm', '--replay-generative-model', type=str, default="", choices=['vae', 'cvae','autoencoder'],
+    parser.add_argument('-rgm', '--replay-generative-model', type=str, default="", choices=['vae', 'cvae'],
                         help='Generative model to replay for generating a dataset (for Continual Learning purposes)')
     parser.add_argument('--log-generative-model', type=str, default='',
                         help='Logs of the custom pretained policy to run for data collection')
