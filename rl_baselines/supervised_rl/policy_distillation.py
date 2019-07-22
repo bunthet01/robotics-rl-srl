@@ -12,7 +12,7 @@ from srl_zoo.models.base_models import CustomCNN
 from srl_zoo.preprocessing.data_loader import SupervisedDataLoader, DataLoader
 from srl_zoo.utils import loadData, loadDataCVAE
 from state_representation.models import loadSRLModel, getSRLDim
-from srl_zoo.preprocessing.utils import convertScalerToTensorAction
+from srl_zoo.preprocessing.utils import one_hot
 
 N_WORKERS = 4
 BATCH_SIZE = 8
@@ -285,7 +285,7 @@ class PolicyDistillationModel(BaseRLObject):
                 if not args.continuous_actions:
                     # Discrete actions, rearrange action to have n_minibatch ligns and one column,
                     # containing the int action
-                    actions_st = convertScalerToTensorAction(th.from_numpy(actions_st)).requires_grad_(False).to(self.device)
+                    actions_st = one_hot(th.from_numpy(actions_st)).requires_grad_(False).to(self.device)
                     actions_proba_st = th.from_numpy(actions_proba_st).requires_grad_(False).to(self.device)
                 else:
                     # Continuous actions, rearrange action to have n_minibatch ligns and dim_action columns
@@ -301,18 +301,19 @@ class PolicyDistillationModel(BaseRLObject):
                     state = obs.detach()
                 pred_action = self.model.forward(state)
 
-                # loss = self.loss_fn_kd(pred_action,
-                #                        actions_proba_st.float(),
-                #                        labels=cl_labels_st, adaptive_temperature=USE_ADAPTIVE_TEMPERATURE)
+                loss = self.loss_fn_kd(pred_action,
+                                        actions_proba_st.float(),
+                                        labels=cl_labels_st, adaptive_temperature=USE_ADAPTIVE_TEMPERATURE)
 
-                loss = self.loss_mse(pred_action,  actions_proba_st.float())
+                #loss = self.loss_mse(pred_action,  actions_proba_st.float())
 
-                loss.backward()
+                
                 if validation_mode:
                     val_loss += loss.item()
                     # We do not optimize on validation data
                     # so optimizer.step() is not called
                 else:
+                    loss.backward()
                     self.optimizer.step()
                     epoch_loss += loss.item()
                     epoch_batches += 1
