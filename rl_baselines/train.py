@@ -271,7 +271,7 @@ def main():
                         help='Episode window for saving each policy checkpoint for future distillation(default: 100)')
     parser.add_argument('--new-lr', type=float, default=1.e-4,
                         help="New learning rate ratio to train a pretrained agent")
-    parser.add_argument('--img-shape', type=str, default="(3,128,128)",
+    parser.add_argument('--img-shape', type=str, default="(3,64,64)",
                         help="Image shape of environment.")
     parser.add_argument("--gpu-num", help="Choose the number of GPU (CUDA_VISIBLE_DEVICES).",
                         type=str, default="1", choices=["0", "1", "2", "3", "5", "6", "7", "8"])
