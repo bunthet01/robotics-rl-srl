@@ -391,7 +391,7 @@ class OmniRobotSimulatorSocket(OmnirobotManagerBase):
             "target_marker_code": None,
             "robot_marker_length": 0.18,
             "target_marker_length": 0.18,
-            "output_size": [224, 224],
+            #"output_size": [64, 64],
             "init_x": 0,
             "init_y": 0,
             "init_yaw": 0,

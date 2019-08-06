@@ -72,7 +72,7 @@ def parseArguments():
     args, unknown = parser.parse_known_args()
     assert sum([args.simple_continual, args.circular_continual, args.square_continual]) <= 1, \
         "For continual SRL and RL, please provide only one scenario at the time and use OmnirobotEnv-v0 environment !"
-    parser.add_argument('--img-shape', type=str, default="(3,128,128)",
+    parser.add_argument('--img-shape', type=str, default="(3,64,64)",
                         help="Image shape of environment.")
     return parser.parse_args()
 

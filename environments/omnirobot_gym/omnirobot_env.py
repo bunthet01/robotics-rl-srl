@@ -30,6 +30,7 @@ RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
 RELATIVE_POS = True
 N_CONTACTS_BEFORE_TERMINATION = 15 #10
+print("USING_OMNIROBOT_SIMULATOR",USING_OMNIROBOT_SIMULATOR)
 
 DELTA_POS = 0.1  # DELTA_POS for continuous actions
 N_DISCRETE_ACTIONS = 4
@@ -471,7 +472,7 @@ class OmniRobotEnv(SRLGymEnv):
             for idx in range(4):
                 idx_next = idx + 1
                 cv2.line(self.observation_with_boundary, tuple(self.boundary_coner_pixel_pos_continual[:, idx]),
-                         tuple(self.boundary_coner_pixel_pos_continual[:, idx_next % 4]), (0, 0, 200), 2)
+                         tuple(self.boundary_coner_pixel_pos_continual[:, idx_next % 4]), (0, 0, 200), 1)
 
         elif self.circular_continual_move:
             radius_converted = np.linalg.norm(self.center_coordinates - self.boundary_coner_pixel_pos_continual)
@@ -482,4 +483,4 @@ class OmniRobotEnv(SRLGymEnv):
         for idx in range(4):
             idx_next = idx + 1
             cv2.line(self.observation_with_boundary, tuple(self.boundary_coner_pixel_pos[:, idx]),
-                     tuple(self.boundary_coner_pixel_pos[:, idx_next % 4]), (200, 0, 0), 3)
+                     tuple(self.boundary_coner_pixel_pos[:, idx_next % 4]), (200, 0, 0), 1)

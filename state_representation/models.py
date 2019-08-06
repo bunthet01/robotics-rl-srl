@@ -112,7 +112,7 @@ def loadSRLModel(path=None, cuda=False, env_object=None):
     if path is not None:
         printYellow("Loading trained model...{}".format(path))
         model.load(path)
-    return model
+    return model, losses
 
 
 class SRLBaseClass(object):

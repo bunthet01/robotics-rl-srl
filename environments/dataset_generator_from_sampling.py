@@ -1,6 +1,6 @@
 #"""
 #This is the script to generate dataset for policy distillation without having to access to each teacher's environment.
-#What we need is only the generative model(CVAE for now) and policy model of each teacher task (and the srl model that used to train each teacher's RL task.)
+#What we need is only the generative model(CVAE or CGAN for now) and policy model of each teacher task (and the srl model that used to train each teacher's RL task.)
 # 
 #"""
 
@@ -19,7 +19,7 @@ from tqdm import tqdm
 from replay.enjoy_baselines import loadConfigAndSetup
 from state_representation.models import loadSRLModel
 from srl_zoo.preprocessing.utils import one_hot, deNormalize
-from srl_zoo.preprocessing.data_loader import DataLoaderCVAE
+from srl_zoo.preprocessing.data_loader import DataLoaderConditional
 
 MAX_BATCH_SIZE_GPU = 128 # number of batch size before the gpu run out of memory	
 
@@ -58,7 +58,7 @@ def main():
     print("Using seed = ", args.seed)
 
     # load generative model
-    generative_model = loadSRLModel(args.log_generative_model, th.cuda.is_available())
+    generative_model, gernerative_model_losses = loadSRLModel(args.log_generative_model, th.cuda.is_available())
     generative_model_state_dim = generative_model.state_dim
     generative_model = generative_model.model.model
     
@@ -79,27 +79,30 @@ def main():
     
     # check if the rl model was trained with SRL
     if srl_model_path!=None:
-        srl_model = loadSRLModel(srl_model_path, th.cuda.is_available()).model.model
+        srl_model,_ = loadSRLModel(srl_model_path, th.cuda.is_available())
+        srl_model = srl_model.model.model
         
     # generate equal numbers of each action (decrete actions for 4 movement)         
     actions_0 = 0*np.ones(args.ngsa)
     actions_1 = 1*np.ones(args.ngsa)
     actions_2 = 2*np.ones(args.ngsa)
     actions_3 = 3*np.ones(args.ngsa)
-    actions_unnormalize = np.concatenate((actions_0, actions_1, actions_2, actions_3)).astype(int)
+    actions = np.concatenate((actions_0, actions_1, actions_2, actions_3)).astype(int)
     np.random.seed(args.seed)
-    np.random.shuffle(actions_unnormalize)
+    np.random.shuffle(actions)
 
     # create minibatchlist
-    minibatchlist = DataLoaderCVAE.createTestMinibatchList(args.ngsa*4, MAX_BATCH_SIZE_GPU)
+    minibatchlist = DataLoaderConditional.createTestMinibatchList(args.ngsa*4, MAX_BATCH_SIZE_GPU)
 
     # data_loader
-    data_loader = DataLoaderCVAE(minibatchlist, actions_unnormalize, generative_model_state_dim, seed = args.seed, max_queue_len=4 )
+    data_loader = DataLoaderConditional(minibatchlist, actions, generative_model_state_dim, seed = args.seed, max_queue_len=4 )
 
-    # some array for saving at the end  
+    # some lists for saving at the end  
     imgs_paths_array = []
     actions_array = []
     episode_starts = []
+    
+    using_conditional_model = "cgan" in gernerative_model_losses or "cvae" in gernerative_model_losses or "cgan_new" in gernerative_model_losses
 
     #number of correct class prediction
     num_correct_class = np.zeros(4)
@@ -107,8 +110,11 @@ def main():
     for minibatch_num, (z, c) in enumerate(data_loader):       
         if th.cuda.is_available():
             state = z.cuda()
-            action = one_hot(c).cuda()
-        generated_obs = generative_model.decode(state, action)
+            one_hot_action = one_hot(c).cuda()
+        if using_conditional_model:
+            generated_obs = generative_model.decode(state, one_hot_action)
+        else:
+            generated_obs = generative_model.decode(state)            
 
         # save generated obervation 
         folder_path = os.path.join(args.save_path + args.name+"record_{:03d}/".format(minibatch_num))
@@ -118,8 +124,12 @@ def main():
         for i in range(generated_obs.size(0)):
             obs = deNormalize(generated_obs[i].to(th.device('cpu')).detach().numpy())
             obs = 255*obs[..., ::-1]
-            imgs_paths = folder_path+"frame_{:06d}_class_{}.jpg".format(i, int(c[i]))
-            cv2.imwrite(imgs_paths, obs.astype(int))  
+            if using_conditional_model:
+                imgs_paths = folder_path+"frame_{:06d}_class_{}.jpg".format(i, int(c[i]))             
+            else:
+                imgs_paths = folder_path+"frame_{:06d}.jpg".format(i)
+                
+            cv2.imwrite(imgs_paths, obs.astype(np.uint8))  
             imgs_paths_array.append(imgs_paths)
             if i==0 and minibatch_num==0 :
                 episode_starts.append(True)
@@ -140,36 +150,40 @@ def main():
         # count the correct predection 
         # used to evaluate the accuracy of the generative model
         
-        
-        for i in np.arange(on_policy_actions.shape[0]):
-            if c.numpy()[i]==on_policy_actions[i]:
-                if c[i] == 0:num_correct_class[0] += 1
-                elif c[i] == 1:num_correct_class[1] += 1
-                elif c[i] == 2:num_correct_class[2] += 1
-                else: num_correct_class[3] += 1
+        if using_conditional_model:
+            for i in np.arange(on_policy_actions.shape[0]):
+                if c.numpy()[i]==on_policy_actions[i]:
+                    if c[i] == 0:num_correct_class[0] += 1
+                    elif c[i] == 1:num_correct_class[1] += 1
+                    elif c[i] == 2:num_correct_class[2] += 1
+                    else: num_correct_class[3] += 1
         pbar.update(1)
     pbar.close()
                 
-                
-    correct_observations = (100/args.ngsa)*num_correct_class        
-    print("The generative model is {}% accurate for {} testing samples.".format(np.sum(num_correct_class)*100/(args.ngsa*4), args.ngsa*4))
-    print("Correct observations of action class '0' : {}%".format(correct_observations[0]))
-    print("Correct observations of action class '1' : {}%".format(correct_observations[1]))
-    print("Correct observations of action class '2' : {}%".format(correct_observations[2]))
-    print("Correct observations of action class '3' : {}%".format(correct_observations[3]))
+    if using_conditional_model:         
+        correct_observations = (100/args.ngsa)*num_correct_class        
+        print("The generative model is {}% accurate for {} testing samples.".format(np.sum(num_correct_class)*100/(args.ngsa*4), args.ngsa*4))
+        print("Correct observations of action class '0' : {}%".format(correct_observations[0]))
+        print("Correct observations of action class '1' : {}%".format(correct_observations[1]))
+        print("Correct observations of action class '2' : {}%".format(correct_observations[2]))
+        print("Correct observations of action class '3' : {}%".format(correct_observations[3]))
     
     # save some data
     	# We dont have any information about the ground_truth_states and target_positions. 
     	# They are saved for the sake of not causing error in data merging only,since data merging looks also to merge these two arrays.  
-    np.savez(args.save_path + args.name + "/preprocessed_data.npz", actions=actions_unnormalize.tolist(), actions_proba=actions_proba_array.tolist(), episode_starts=episode_starts, rewards = [])
+    np.savez(args.save_path + args.name + "/preprocessed_data.npz", actions=actions.tolist(), actions_proba=actions_proba_array.tolist(), episode_starts=episode_starts, rewards = [])
     np.savez(args.save_path + args.name + "/ground_truth.npz", images_path=imgs_paths_array, ground_truth_states=[[]], target_positions=[[]])   
 
     #save configs files
     copyfile(args.log_dir + "/env_globals.json", args.save_path + args.name+'/env_globals.json')
     with open(args.save_path + args.name+'/dataset_config.json', 'w') as f:
         json.dump({"img_shape" : train_args.get("img_shape", None)},f)
-    with open(args.save_path + args.name+'/class_eval.json', 'w') as f:
-        json.dump({"num_correct_class" : correct_observations.tolist(), "ngsa_per_class":args.ngsa, "random_seed":args.seed},f)
+    if using_conditional_model:  
+        with open(args.save_path + args.name+'/class_eval.json', 'w') as f:
+            json.dump({"num_correct_class" : correct_observations.tolist(), "ngsa_per_class":args.ngsa, "random_seed":args.seed},f)
+    else: 
+        with open(args.save_path + args.name+'/class_eval.json', 'w') as f:
+            json.dump({"random_seed":args.seed},f)
 
 if __name__ == '__main__':
     main()

@@ -163,7 +163,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
                 walker_path = walkerPath()
 
     if len(args.replay_generative_model) > 0:
-        srl_model = loadSRLModel(args.log_generative_model, th.cuda.is_available())
+        srl_model,_ = loadSRLModel(args.log_generative_model, th.cuda.is_available())
         srl_state_dim = srl_model.state_dim
         srl_model = srl_model.model.model
 
