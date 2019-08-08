@@ -29,7 +29,7 @@ else:
 RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
 RELATIVE_POS = True
-N_CONTACTS_BEFORE_TERMINATION = 15 #10
+N_CONTACTS_BEFORE_TERMINATION = 2
 print("USING_OMNIROBOT_SIMULATOR",USING_OMNIROBOT_SIMULATOR)
 
 DELTA_POS = 0.1  # DELTA_POS for continuous actions
@@ -108,7 +108,6 @@ class OmniRobotEnv(SRLGymEnv):
         self.saver = None
         self._random_target = random_target
         self.simple_continual_target = simple_continual_target
-        print("self.simple_continual_target", self.simple_continual_target)
         self.circular_continual_move = circular_continual_move
         self.square_continual_move = square_continual_move
         self.eight_continual_move = eight_continual_move
