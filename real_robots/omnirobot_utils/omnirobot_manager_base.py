@@ -115,14 +115,17 @@ class OmnirobotManagerBase(object):
         :param msg: (dict)
         """
         command = msg.get('command', '')
+        aligned = msg.get('aligned','')
         if command == 'reset':
             action = None
             self.episode_idx += 1
 
             # empty list of previous states
             self.robot.emptyHistory()
-
-            self.resetEpisode()
+            if aligned :
+                choice = np.random.randint(0,2)
+            else: choice = -1
+            self.resetEpisode(choice)
 
         elif command == 'action':
             if msg.get('is_discrete', False):

@@ -432,7 +432,7 @@ class OmniRobotSimulatorSocket(OmnirobotManagerBase):
         self.state_init_override = self.new_args['state_init_override']
         self.resetEpisode()  # for a random target initial position
 
-    def resetEpisode(self):
+    def resetEpisode(self, choice=-1):
         """
         override the original method
         Give the correct sequance of commands to the robot 
@@ -451,10 +451,17 @@ class OmniRobotSimulatorSocket(OmnirobotManagerBase):
 
         # target reset
         if self._random_target:
-            random_init_x = np.random.random_sample() * (TARGET_MAX_X - TARGET_MIN_X) + \
-                TARGET_MIN_X
-            random_init_y = np.random.random_sample() * (TARGET_MAX_Y - TARGET_MIN_Y) + \
-                TARGET_MIN_Y
+            if choice == -1:
+                random_init_x = np.random.random_sample() * (TARGET_MAX_X - TARGET_MIN_X) + \
+                    TARGET_MIN_X
+                random_init_y = np.random.random_sample() * (TARGET_MAX_Y - TARGET_MIN_Y) + \
+                    TARGET_MIN_Y
+            elif choice == 0:
+                random_init_x = random_init_position[0]
+                random_init_y = np.random.random_sample() * (TARGET_MAX_Y - TARGET_MIN_Y) + TARGET_MIN_Y
+            else:
+                random_init_x = np.random.random_sample() * (TARGET_MAX_X - TARGET_MIN_X) + TARGET_MIN_X
+                random_init_y = random_init_position[1]
             self.robot.setTargetCmd(
                 random_init_x, random_init_y, 2 * np.pi * np.random.rand() - np.pi)
 

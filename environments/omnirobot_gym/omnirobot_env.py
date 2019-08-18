@@ -295,7 +295,7 @@ class OmniRobotEnv(SRLGymEnv):
         """
         return self.robot_pos
 
-    def reset(self, generated_observation=None, state_override=None):
+    def reset(self, aligned, generated_observation=None, state_override=None):
         """
         Reset the environment
         :param generated_observation:
@@ -307,7 +307,7 @@ class OmniRobotEnv(SRLGymEnv):
         self._env_step_counter = 0
         # set n contact count
         self.n_contacts = 0
-        self.socket.send_json({"command": "reset", "step_counter": self._env_step_counter})
+        self.socket.send_json({"command": "reset", "step_counter": self._env_step_counter, "aligned": aligned})
         # Update state related variables, important step to get both data and
         # metadata that allow reading the observation image
         self.getEnvState()

@@ -163,6 +163,7 @@ class SRLNeuralNetwork(SRLBaseClass):
         super(SRLNeuralNetwork, self).__init__(state_dim, cuda)
         self.img_shape = img_shape
         self.model_type = model_type
+        device = th.device("cuda" if cuda else "cpu")
         if "supervised" in losses:
             if "cnn" in model_type:
                 self.model = CustomCNN(state_dim)
@@ -170,7 +171,7 @@ class SRLNeuralNetwork(SRLBaseClass):
                 self.model = ConvolutionalNetwork(state_dim)
         else:
             self.model = SRLModules(state_dim=state_dim, cuda=cuda, class_dim=class_dim, img_shape=self.img_shape, action_dim=n_actions, model_type=model_type,
-                                    losses=losses, split_dimensions=split_dimensions, inverse_model_type=inverse_model_type)
+                                    losses=losses, split_dimensions=split_dimensions, inverse_model_type=inverse_model_type, device=device)
         self.model.eval()
 
         self.device = th.device("cuda" if th.cuda.is_available() and cuda else "cpu")

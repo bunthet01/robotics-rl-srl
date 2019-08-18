@@ -67,7 +67,7 @@ def vecEnv(env_kwargs_local, env_class):
     return train_env
 
 
-def env_thread(args, thread_num, partition=True, use_ppo2=False):
+def env_thread(args, thread_num, partition=True, use_ppo2=False, aligned=False):
     """
     Run a session of an environment
     :param args: (ArgumentParser object)
@@ -147,6 +147,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False):
     action_walker = None
     state_init_for_walker = None
     kwargs_reset, kwargs_step = {}, {}
+    kwargs_reset['aligned'] = aligned
 
     if args.run_policy in ['custom', 'ppo2', 'walker']:
         # Additional env when using a trained agent to generate data
@@ -308,6 +309,8 @@ def main():
                              'The task is: robot should turn in square around the target.')
     parser.add_argument('--short-episodes', action='store_true', default=False,
                         help='Generate short episodes (only 10 contacts with the target allowed).') 
+    parser.add_argument('--aligned', action='store_true', default=False,
+                        help='generated target and robot in the same horizontal or vertical line')
 
     args = parser.parse_args()
 
@@ -351,13 +354,13 @@ def main():
         os.mkdir(args.save_path + args.name)
 
     if args.num_cpu == 1:
-        env_thread(args, 0, partition=False, use_ppo2=args.run_ppo2)
+        env_thread(args, 0, partition=False, use_ppo2=args.run_ppo2, aligned=args.aligned)
     else:
         # try and divide into multiple processes, with an environment each
         try:
             jobs = []
             for i in range(args.num_cpu):
-                process = multiprocessing.Process(target=env_thread, args=(args, i, True, args.run_ppo2))
+                process = multiprocessing.Process(target=env_thread, args=(args, i, True, args.run_ppo2, args.aligned))
                 jobs.append(process)
 
             for j in jobs:

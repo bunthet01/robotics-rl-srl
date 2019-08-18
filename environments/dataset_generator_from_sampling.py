@@ -1,7 +1,7 @@
 #"""
 #This is the script to generate dataset for policy distillation without having to access to each teacher's environment.
 #What we need is only the generative model(CVAE or CGAN for now) and policy model of each teacher task (and the srl model that used to train each teacher's RL task.)
-# 
+# It is designed for now specefically for Omnirobot_env
 #"""
 
 import argparse
@@ -20,6 +20,7 @@ from replay.enjoy_baselines import loadConfigAndSetup
 from state_representation.models import loadSRLModel
 from srl_zoo.preprocessing.utils import one_hot, deNormalize
 from srl_zoo.preprocessing.data_loader import DataLoaderConditional
+from real_robots.constants import TARGET_MAX_X, TARGET_MIN_X, TARGET_MAX_Y, TARGET_MIN_Y   # using Omnibot_env 
 
 MAX_BATCH_SIZE_GPU = 128 # number of batch size before the gpu run out of memory	
 
@@ -42,12 +43,14 @@ def main():
     parser.add_argument('--shape-reward', action='store_true', default=False,
                         help='Shape the reward (reward = - distance) instead of a sparse reward')
     parser.add_argument('--seed', type=int, default=0, help='the seed')
+    parser.add_argument('--task', type=str, default=None, choices=['sc','cc'], help='choose task for data set generation')
 
     args = parser.parse_args()
 
     # assert
     assert not (args.log_generative_model == '' and args.replay_generative_model == 'custom'), \
         "If using a custom policy, please specify a valid log folder for loading it."
+    assert not (args.task is None), "must choose a task"
 
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
@@ -95,7 +98,7 @@ def main():
     minibatchlist = DataLoaderConditional.createTestMinibatchList(args.ngsa*4, MAX_BATCH_SIZE_GPU)
 
     # data_loader
-    data_loader = DataLoaderConditional(minibatchlist, actions, generative_model_state_dim, seed = args.seed, max_queue_len=4 )
+    data_loader = DataLoaderConditional(minibatchlist, actions,args.task, generative_model_state_dim,TARGET_MAX_X, TARGET_MIN_X, TARGET_MAX_Y, TARGET_MIN_Y, seed = args.seed, max_queue_len=4 )
 
     # some lists for saving at the end  
     imgs_paths_array = []
@@ -107,12 +110,13 @@ def main():
     #number of correct class prediction
     num_correct_class = np.zeros(4)
     pbar = tqdm(total=len(minibatchlist))
-    for minibatch_num, (z, c) in enumerate(data_loader):       
+    for minibatch_num, (z, c, t) in enumerate(data_loader):       
         if th.cuda.is_available():
-            state = z.cuda()
-            one_hot_action = one_hot(c).cuda()
+            state = z.to('cuda')
+            action = c.to('cuda')
+            target = t.to('cuda') 
         if using_conditional_model:
-            generated_obs = generative_model.decode(state, one_hot_action)
+            generated_obs = generative_model.decode(state, action, target)
         else:
             generated_obs = generative_model.decode(state)            
 
@@ -125,7 +129,7 @@ def main():
             obs = deNormalize(generated_obs[i].to(th.device('cpu')).detach().numpy())
             obs = 255*obs[..., ::-1]
             if using_conditional_model:
-                imgs_paths = folder_path+"frame_{:06d}_class_{}.jpg".format(i, int(c[i]))             
+                imgs_paths = folder_path+"frame_{:06d}_class_{}_tp_{:.2f}_{:.2f}.jpg".format(i, int(c[i]),t[i][0], t[i][1])             
             else:
                 imgs_paths = folder_path+"frame_{:06d}.jpg".format(i)
                 
