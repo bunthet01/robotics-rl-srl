@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--short-episodes', action='store_true', default=False,
                         help='Generate short episodes (only 10 contacts with the target allowed).')
     parser.add_argument('--display', action='store_true', default=False)
-    parser.add_argument('--ngsa','--num-generating-samples-per-action', type=int, default='1000',
+    parser.add_argument('--ngsa','--num-generating-samples-per-action', type=int, default='2000',
                         help='The number of generated observation for each of the 4 class')
     parser.add_argument('--shape-reward', action='store_true', default=False,
                         help='Shape the reward (reward = - distance) instead of a sparse reward')
@@ -61,7 +61,7 @@ def main():
     print("Using seed = ", args.seed)
 
     # load generative model
-    generative_model, gernerative_model_losses = loadSRLModel(args.log_generative_model, th.cuda.is_available())
+    generative_model, gernerative_model_losses, only_action = loadSRLModel(args.log_generative_model, th.cuda.is_available())
     generative_model_state_dim = generative_model.state_dim
     generative_model = generative_model.model.model
     
@@ -82,7 +82,7 @@ def main():
     
     # check if the rl model was trained with SRL
     if srl_model_path!=None:
-        srl_model,_ = loadSRLModel(srl_model_path, th.cuda.is_available())
+        srl_model,_,_ = loadSRLModel(srl_model_path, th.cuda.is_available())
         srl_model = srl_model.model.model
         
     # generate equal numbers of each action (decrete actions for 4 movement)         
@@ -116,7 +116,7 @@ def main():
             action = c.to('cuda')
             target = t.to('cuda') 
         if using_conditional_model:
-            generated_obs = generative_model.decode(state, action, target)
+            generated_obs = generative_model.decode(state, action, target, only_action)
         else:
             generated_obs = generative_model.decode(state)            
 
@@ -129,7 +129,10 @@ def main():
             obs = deNormalize(generated_obs[i].to(th.device('cpu')).detach().numpy())
             obs = 255*obs[..., ::-1]
             if using_conditional_model:
-                imgs_paths = folder_path+"frame_{:06d}_class_{}_tp_{:.2f}_{:.2f}.jpg".format(i, int(c[i]),t[i][0], t[i][1])             
+                if only_action:
+                    imgs_paths = folder_path+"frame_{:06d}_class_{}.jpg".format(i, int(c[i]))
+                else:
+                    imgs_paths = folder_path+"frame_{:06d}_class_{}_tp_{:.2f}_{:.2f}.jpg".format(i, int(c[i]),t[i][0], t[i][1])             
             else:
                 imgs_paths = folder_path+"frame_{:06d}.jpg".format(i)
                 

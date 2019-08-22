@@ -67,8 +67,11 @@ def loadSRLModel(path=None, cuda=False, env_object=None):
         model_type = exp_config.get('model-type', None)
         use_multi_view = exp_config.get('multi-view', False)
         inverse_model_type = exp_config.get('inverse-model-type', 'linear')
-        # class_dim = exp_config.get('class_dim', None)
-
+        only_action = exp_config.get('only_action', False)
+        add_noise = exp_config.get('add_noise', False)
+        ls = exp_config.get('label_smoothing', False)
+        pretrained_weights_path = exp_config.get('pretrained_weights_path',None)
+        debug = exp_config.get('debug',None)
         assert state_dim is not None, \
             "Please make sure you are loading an up to date model with a conform exp_config file."
 
@@ -102,7 +105,8 @@ def loadSRLModel(path=None, cuda=False, env_object=None):
         else:
             new_img_shape = img_shape
         model = SRLNeuralNetwork(state_dim=state_dim, cuda=cuda, class_dim=class_dim, img_shape=new_img_shape, model_type=model_type, n_actions=n_actions, losses=losses,
-                                 split_dimensions=split_dimensions, inverse_model_type=inverse_model_type)
+                                 split_dimensions=split_dimensions, inverse_model_type=inverse_model_type, ls=ls,add_noise=add_noise,only_action=only_action,pretrained_weights_path=pretrained_weights_path,
+                                 debug=debug)
 
     model_name = model_type
     if 'baselines' not in path:
@@ -112,7 +116,7 @@ def loadSRLModel(path=None, cuda=False, env_object=None):
     if path is not None:
         printYellow("Loading trained model...{}".format(path))
         model.load(path)
-    return model, losses
+    return model, losses, only_action
 
 
 class SRLBaseClass(object):
@@ -150,7 +154,8 @@ class SRLNeuralNetwork(SRLBaseClass):
     """SRL using a neural network as a state representation model"""
 
     def __init__(self, state_dim, cuda, class_dim, img_shape=None, model_type="custom_cnn", n_actions=None, losses=None, split_dimensions=None,
-                 inverse_model_type="linear"):
+                 inverse_model_type="linear",ls=False,add_noise=False,only_action=False,pretrained_weights_path=None,
+                                 debug=False):
         """
         :param state_dim: (int)
         :param cuda: (bool)
@@ -171,7 +176,9 @@ class SRLNeuralNetwork(SRLBaseClass):
                 self.model = ConvolutionalNetwork(state_dim)
         else:
             self.model = SRLModules(state_dim=state_dim, cuda=cuda, class_dim=class_dim, img_shape=self.img_shape, action_dim=n_actions, model_type=model_type,
-                                    losses=losses, split_dimensions=split_dimensions, inverse_model_type=inverse_model_type, device=device)
+                         losses=losses,split_dimensions=split_dimensions,inverse_model_type=inverse_model_type,ls=ls,add_noise=add_noise,only_action=only_action,
+                         pretrained_weights_path=pretrained_weights_path,
+                         debug=debug, device=device)
         self.model.eval()
 
         self.device = th.device("cuda" if th.cuda.is_available() and cuda else "cpu")

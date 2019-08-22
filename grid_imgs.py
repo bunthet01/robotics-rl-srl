@@ -3,7 +3,11 @@ import matplotlib.pyplot as plt
 import cv2
 import torch as th
 import numpy as np
-n=9
+n=2
+if n==2:
+    img_1_1 = th.tensor(np.transpose(plt.imread("1.jpg"),(2,1,0)))
+    img_1_2 = th.tensor(np.transpose(plt.imread("2.jpg"),(2,1,0)))
+    images = make_grid([img_1_1, img_1_2], nrow=1)
 if n==4:
     img_1_1 = th.tensor(np.transpose(plt.imread("1.jpg"),(2,1,0)))
     img_1_2 = th.tensor(np.transpose(plt.imread("2.jpg"),(2,1,0)))

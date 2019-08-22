@@ -69,9 +69,9 @@ python train.py --data-folder data/circular_on_policy  -bs 32 --epochs 20 --stat
 ```
 cd ..
 # Task_1: Random target reaching
-python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask1* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_reaching_on_policy/ 
+python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask1* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_reaching_on_policy/ --task sc
 # Task_2: Circular moving
-python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask2* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_circular_on_policy/ 
+python -m environments.dataset_generator_from_sampling --log-custom-policy logs/*path2policyTask2* --log-generative-model srl_zoo/logs/*path2generative_model* --name generative_circular_on_policy/ --task cc
 
 ```
 The results will be in "robotics-rl-srl/data".

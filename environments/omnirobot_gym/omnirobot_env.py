@@ -295,7 +295,7 @@ class OmniRobotEnv(SRLGymEnv):
         """
         return self.robot_pos
 
-    def reset(self, aligned, generated_observation=None, state_override=None):
+    def reset(self, aligned=False, generated_observation=None, state_override=None):
         """
         Reset the environment
         :param generated_observation:
