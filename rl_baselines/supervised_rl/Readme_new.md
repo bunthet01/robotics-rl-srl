@@ -195,6 +195,7 @@ robot’s positions are sampled with grid walker of step 0.28. With this step, t
 are 25 observations in an episode.
 
 ![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/grid_walker_0.28_TC_.png)
+
 Oberservations in a episod enerated by CVAE_Task2 with a fixed
 value of laten variable z. The sampled target is placed at the center of the arena
 and the robot’s positions are sampledwith grid walker of step 0.28. With this
