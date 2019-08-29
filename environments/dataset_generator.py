@@ -67,7 +67,7 @@ def vecEnv(env_kwargs_local, env_class):
     return train_env
 
 
-def env_thread(args, thread_num, partition=True, use_ppo2=False, aligned=False):
+def env_thread(args, thread_num, partition=True, use_ppo2=False, aligned=False, init_with_real=False, img_shape="(3,224,224)"):
     """
     Run a session of an environment
     :param args: (ArgumentParser object)
@@ -120,14 +120,18 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False, aligned=False):
         env_kwargs["eight_continual_move"] = env_kwargs_extra.get("eight_continual_move", False)
 
         eps = 0.2
-        env_kwargs["state_init_override"] = np.array([MIN_X + eps, MAX_X - eps]) \
-            if args.run_policy == 'walker' else None
+        if args.run_policy == 'walker':
+            env_kwargs["state_init_override"] = np.array([MIN_X + eps, MAX_X - eps])
+        else:
+            env_kwargs["state_init_override"] = None
         if env_kwargs["use_srl"]:
             env_kwargs["srl_model_path"] = env_kwargs_extra.get("srl_model_path", None)
             env_kwargs["state_dim"] = getSRLDim(env_kwargs_extra.get("srl_model_path", None))
             srl_model = MultiprocessSRLModel(num_cpu=args.num_cpu, env_id=args.env, env_kwargs=env_kwargs)
             env_kwargs["srl_pipe"] = srl_model.pipe
-    print("random target", env_kwargs["random_target"])
+    else:
+        env_kwargs["img_shape"] = tuple(map(int, img_shape[1:-1].split(",")))
+
     env_class = registered_env[args.env][0]
     env = env_class(**env_kwargs)
 
@@ -148,6 +152,7 @@ def env_thread(args, thread_num, partition=True, use_ppo2=False, aligned=False):
     state_init_for_walker = None
     kwargs_reset, kwargs_step = {}, {}
     kwargs_reset['aligned'] = aligned
+    kwargs_reset['init_with_real'] = init_with_real
 
     if args.run_policy in ['custom', 'ppo2', 'walker']:
         # Additional env when using a trained agent to generate data
@@ -311,6 +316,11 @@ def main():
                         help='Generate short episodes (only 10 contacts with the target allowed).') 
     parser.add_argument('--aligned', action='store_true', default=False,
                         help='generated target and robot in the same horizontal or vertical line')
+    parser.add_argument('--init-with-real', action='store_true', default=False,
+                        help='save the init robot position with its real position instead of [0,0]')
+    parser.add_argument('--img-shape', type=str, default="(3,64,64)",
+                        help='image shape (default "(3,64,64)"')
+
 
     args = parser.parse_args()
 
@@ -354,13 +364,13 @@ def main():
         os.mkdir(args.save_path + args.name)
 
     if args.num_cpu == 1:
-        env_thread(args, 0, partition=False, use_ppo2=args.run_ppo2, aligned=args.aligned)
+        env_thread(args, 0, partition=False, use_ppo2=args.run_ppo2, aligned=args.aligned, init_with_real=args.init_with_real, img_shape=args.img_shape)
     else:
         # try and divide into multiple processes, with an environment each
         try:
             jobs = []
             for i in range(args.num_cpu):
-                process = multiprocessing.Process(target=env_thread, args=(args, i, True, args.run_ppo2, args.aligned))
+                process = multiprocessing.Process(target=env_thread, args=(args, i, True, args.run_ppo2, args.aligned, args.init_with_real, args.img_shape))
                 jobs.append(process)
 
             for j in jobs:

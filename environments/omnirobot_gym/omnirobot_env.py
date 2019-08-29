@@ -28,8 +28,8 @@ else:
 
 RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
-RELATIVE_POS = True
-N_CONTACTS_BEFORE_TERMINATION = 2
+RELATIVE_POS = False
+N_CONTACTS_BEFORE_TERMINATION = 5
 print("USING_OMNIROBOT_SIMULATOR",USING_OMNIROBOT_SIMULATOR)
 
 DELTA_POS = 0.1  # DELTA_POS for continuous actions
@@ -295,7 +295,7 @@ class OmniRobotEnv(SRLGymEnv):
         """
         return self.robot_pos
 
-    def reset(self, aligned=False, generated_observation=None, state_override=None):
+    def reset(self, aligned=False, init_with_real=False, generated_observation=None, state_override=None):
         """
         Reset the environment
         :param generated_observation:
@@ -311,7 +311,8 @@ class OmniRobotEnv(SRLGymEnv):
         # Update state related variables, important step to get both data and
         # metadata that allow reading the observation image
         self.getEnvState()
-        self.robot_pos = np.array([0, 0]) if state_override is None else state_override
+        if not init_with_real:
+            self.robot_pos = np.array([0, 0]) if state_override is None else state_override
         self.observation = self.getObservation() if generated_observation is None else generated_observation * 255
         if self.saver is not None:
             self.saver.reset(self.observation,

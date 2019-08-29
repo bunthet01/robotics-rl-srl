@@ -23,8 +23,9 @@ RENDER_HEIGHT = 224
 RENDER_WIDTH = 224
 FINE_TUNING = False
 
+
 CL_LABEL_KEY = "continual_learning_label"
-USE_ADAPTIVE_TEMPERATURE = False
+USE_ADAPTIVE_TEMPERATURE = True
 TEMPERATURES = {'CC': 0.1, 'SC': 0.1, 'EC': 0.1, 'SQC': 0.1, "default": 0.1}
 # run with 0.1 to have good results!
 # 0.01 worse reward for CC, better SC
@@ -128,14 +129,17 @@ class PolicyDistillationModel(BaseRLObject):
         :return: loss
         """
         if labels is not None and adaptive_temperature:
+            
             T = th.from_numpy(np.array([TEMPERATURES[labels[idx_elm]] for idx_elm in range(BATCH_SIZE)])).cuda().float()
-
             KD_loss = F.softmax(th.div(teacher_outputs.transpose(1, 0), T), dim=1) * \
-                      th.log((F.softmax(th.div(teacher_outputs.transpose(1, 0), T), dim=1) / F.softmax(outputs, dim=1)))
+                      th.log((F.softmax(th.div(teacher_outputs.transpose(1, 0), T), dim=1) / F.softmax(outputs.transpose(1,0), dim=1)))
         else:
             T = TEMPERATURES["default"]
+            print('1',teacher_outputs.size())
+            print('2', outputs.size())
             KD_loss = F.softmax(teacher_outputs/T, dim=1) * \
                 th.log((F.softmax(teacher_outputs/T, dim=1) / F.softmax(outputs, dim=1)))
+            print(KD_loss.size())
         return KD_loss.mean()
 
     def loss_mse(self, outputs, teacher_outputs):
@@ -220,7 +224,7 @@ class PolicyDistillationModel(BaseRLObject):
             print('Action dimension: {}'.format(self.dim_action))
 
         # Here the default SRL model is assumed to be raw_pixels
-        self.state_dim = RENDER_HEIGHT * RENDER_WIDTH * 3                                                   # why                                                    
+        self.state_dim = self.img_shape[0] * self.img_shape[1] * self.img_shape[2]                                                   # why                                                    
         self.srl_model = None
         print("env_kwargs[srl_model] ",env_kwargs["srl_model"])
         # TODO: add sanity checks & test for all possible SRL for distillation
@@ -288,6 +292,7 @@ class PolicyDistillationModel(BaseRLObject):
                     actions_st = one_hot(th.from_numpy(actions_st)).requires_grad_(False).to(self.device)
                     actions_proba_st = th.from_numpy(actions_proba_st).requires_grad_(False).to(self.device)
                 else:
+                    a = 0
                     # Continuous actions, rearrange action to have n_minibatch ligns and dim_action columns
                     actions_st = th.from_numpy(actions_st).view(-1, self.dim_action).requires_grad_(False).to(
                         self.device)
