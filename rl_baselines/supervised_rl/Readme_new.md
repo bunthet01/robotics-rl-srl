@@ -185,7 +185,9 @@ python train.py --data-folder data/Omnibot_circular_init_with_real  -bs 128 --ep
 We use only "cvae_new" with model_type = "custom_cnn_2" for this experiment.
 
 #### Generated images :
+![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/image_coordinate.png)
 
+Coordinate of the arena.
 
 ![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/grid_walker_0.28_TR_.png)
 
