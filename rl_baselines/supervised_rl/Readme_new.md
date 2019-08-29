@@ -113,7 +113,7 @@ python -m replay.enjoy_baselines --log-dir logs/*path2ditilled_policy* --num-tim
 
 ```
 
-#EXPERIMENT 2:
+#  EXPERIMENT 2:
 Representation of the process in Experiment 2
 =============================================
 ![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/experiment_2_process.png)
