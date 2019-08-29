@@ -20,6 +20,8 @@ The are two main experiments in this project:
     generative model in each environment capable of generating
     observations with the robot and target at any position we want.
 
+
+
 #EXPERIMENT 1:
 
 Representation of the process in Experiment 1
