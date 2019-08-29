@@ -4,7 +4,7 @@ So we do not need to be albe to access to each environment.
 
 ![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/Experiments.png)
 
-#EXPERIMENT 1:
+#  EXPERIMENT 1:
 
 Representation of the process in Experiment 1
 =============================================
@@ -181,6 +181,23 @@ python train.py --data-folder data/Omnibot_circular_init_with_real  -bs 128 --ep
 
 ```
 We use only "cvae_new" with model_type = "custom_cnn_2" for this experiment.
+
+#### Generated images :
+
+
+![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/grid_walker_0.28_TR_.png)
+
+Oberservations in a episod enerated by CVAE_Task1 with a fixed
+value of latent variable z.The sampled target is at position (0.50, 0.49) and the
+robot’s positions are sampled with grid walker of step 0.28. With this step, there
+are 25 observations in an episode.
+
+![alt text](https://github.com/bunthet01/robotics-rl-srl/blob/master/rl_baselines/supervised_rl/Documents/Img/grid_walker_0.28_TC_.png)
+Oberservations in a episod enerated by CVAE_Task2 with a fixed
+value of laten variable z. The sampled target is placed at the center of the arena
+and the robot’s positions are sampledwith grid walker of step 0.28. With this
+step, there are 25 observations in an episode.
+
 
 ## 3 - Train distillation 
 ### 3.1) Generate dataset from generative model
